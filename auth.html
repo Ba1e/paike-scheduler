@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FY27 排课系统 - 登录</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.auth-container { width: 400px; }
+.auth-card { background: white; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); overflow: hidden; }
+.auth-header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 32px 28px 24px; text-align: center; }
+.auth-header h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.auth-header p { font-size: 13px; opacity: 0.8; }
+.auth-body { padding: 28px; }
+.auth-tabs { display: flex; margin-bottom: 24px; border-bottom: 2px solid #e0e0e0; }
+.auth-tab { appearance:none; -webkit-appearance:none; border:0; background:transparent; flex: 1; text-align: center; padding: 10px; cursor: pointer; font:inherit; font-size: 14px; font-weight: 500; color: #666; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+.auth-tab:hover { color: #1a237e; }
+.auth-tab:focus-visible { outline:2px solid #4f46e5; outline-offset:-2px; background:#eef2ff; }
+.auth-tab.active { color: #1a237e; border-bottom-color: #1a237e; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; font-weight: 500; }
+.form-group input, .form-group select { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; transition: border-color 0.2s; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: #1a237e; box-shadow: 0 0 0 3px rgba(26,35,126,0.1); }
+.form-help { font-size: 11px; color: #777; margin-top: 5px; line-height: 1.4; }
+.auth-btn { width: 100%; padding: 12px; border: none; border-radius: 6px; background: #1a237e; color: white; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+.auth-btn:hover { background: #283593; }
+.auth-btn:disabled { background: #999; cursor: not-allowed; }
+.auth-form { display: none; }
+.auth-form.active { display: block; }
+.error-msg { background: #ffebee; color: #c62828; padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 16px; display: none; }
+.error-msg.show { display: block; }
+.success-msg { background: #e8f5e9; color: #2e7d32; padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 16px; display: none; }
+.success-msg.show { display: block; }
+.footer { text-align: center; margin-top: 16px; font-size: 12px; color: #999; }
+</style>
+</head>
+<body>
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h1>FY27 排课协作系统</h1>
+      <p>请登录或注册账号</p>
+    </div>
+    <div class="auth-body">
+      <div class="auth-tabs" role="tablist" aria-label="登录注册切换">
+        <button type="button" class="auth-tab active" id="authTabLogin" data-auth-tab="login" role="tab" aria-selected="true" aria-controls="loginForm" tabindex="0">登录</button>
+        <button type="button" class="auth-tab" id="authTabRegister" data-auth-tab="register" role="tab" aria-selected="false" aria-controls="registerForm" tabindex="-1">注册</button>
+      </div>
+
+      <div class="error-msg" id="errorMsg"></div>
+      <div class="success-msg" id="successMsg"></div>
+
+      <form class="auth-form active" id="loginForm" role="tabpanel" aria-labelledby="authTabLogin">
+        <div class="form-group">
+          <label>邮箱</label>
+          <input type="email" id="loginEmail" placeholder="your@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="loginPassword" placeholder="输入密码" required>
+        </div>
+        <button type="submit" class="auth-btn">登录</button>
+      </form>
+
+      <form class="auth-form" id="registerForm" role="tabpanel" aria-labelledby="authTabRegister">
+        <div class="form-group">
+          <label>姓名</label>
+          <input type="text" id="regName" placeholder="请填写真实姓名" required>
+        </div>
+        <div class="form-group">
+          <label>新东方邮箱</label>
+          <input type="email" id="regEmail" placeholder="yourname@xdf.cn" required>
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="regPassword" placeholder="至少6位" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label>确认密码</label>
+          <input type="password" id="regPassword2" placeholder="再次输入密码" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label>身份</label>
+          <select id="regRole" required>
+            <option value="">选择身份</option>
+          </select>
+          <div class="form-help">请选择和管理员下发权限码一致的身份。</div>
+        </div>
+        <div class="form-group" id="deptGroup">
+          <label>所属部门</label>
+          <select id="regDept" required>
+            <option value="">选择部门</option>
+          </select>
+        </div>
+        <div class="form-group" id="campusGroup" style="display:none;">
+          <label>所属校区</label>
+          <select id="regCampus">
+            <option value="">选择校区</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>权限码</label>
+          <input type="text" id="regCode" placeholder="请输入管理员下发的权限码" required>
+        </div>
+        <button type="submit" class="auth-btn">注册</button>
+      </form>
+    </div>
+  </div>
+  <div class="footer">FY27 排课协作系统 v2.0</div>
+</div>
+
+<script src="/app_utils.js"></script>
+<script>
+const deptOptionalRoles = new Set(['admin', 'jiaowu']);
+const roleLabels = {
+  ...window.AppUtils.roleLabels,
+  supervisor: '主管',
+  jiaowu: '教务（跨部门）',
+};
+const apiFetch = window.AppUtils.apiFetch;
+
+function switchTab(tab, options = {}) {
+  document.querySelectorAll('.auth-tab').forEach(t => {
+    const active = t.dataset.authTab === tab;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', active ? 'true' : 'false');
+    t.tabIndex = active ? 0 : -1;
+  });
+  document.getElementById('loginForm').classList.toggle('active', tab === 'login');
+  document.getElementById('registerForm').classList.toggle('active', tab === 'register');
+  if (options.focusField) {
+    setTimeout(() => {
+      const first = tab === 'login' ? document.getElementById('loginEmail') : document.getElementById('regName');
+      first?.focus();
+    }, 0);
+  }
+  hideMessages();
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg; el.classList.add('show');
+  document.getElementById('successMsg').classList.remove('show');
+}
+function showSuccess(msg) {
+  const el = document.getElementById('successMsg');
+  el.textContent = msg; el.classList.add('show');
+  document.getElementById('errorMsg').classList.remove('show');
+}
+function hideMessages() {
+  document.getElementById('errorMsg').classList.remove('show');
+  document.getElementById('successMsg').classList.remove('show');
+}
+
+async function loadDepts() {
+  try {
+    const res = await apiFetch('/api/departments/public');
+    const depts = await res.json();
+    const sel = document.getElementById('regDept');
+    depts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.textContent = d.name;
+      sel.appendChild(opt);
+    });
+  } catch(e) {}
+}
+
+async function loadRegisterOptions() {
+  try {
+    const res = await apiFetch('/api/auth/options');
+    const data = await res.json();
+    const roleSel = document.getElementById('regRole');
+    const campusSel = document.getElementById('regCampus');
+    (data.roles || []).forEach(role => {
+      const opt = document.createElement('option');
+      opt.value = role.id;
+      opt.textContent = role.name || roleLabels[role.id] || role.id;
+      roleSel.appendChild(opt);
+    });
+    (data.campuses || []).forEach(campus => {
+      const opt = document.createElement('option');
+      opt.value = campus;
+      opt.textContent = campus;
+      campusSel.appendChild(opt);
+    });
+  } catch(e) {
+    const roleSel = document.getElementById('regRole');
+    Object.entries(roleLabels).forEach(([id, name]) => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = name;
+      roleSel.appendChild(opt);
+    });
+  }
+}
+
+function updateRegisterFields() {
+  const role = document.getElementById('regRole').value;
+  const dept = document.getElementById('regDept');
+  const campus = document.getElementById('regCampus');
+  const deptGroup = document.getElementById('deptGroup');
+  const campusGroup = document.getElementById('campusGroup');
+
+  const needsDept = role && !deptOptionalRoles.has(role);
+  const needsCampus = role === 'store_manager';
+
+  deptGroup.style.display = needsDept ? 'block' : 'none';
+  campusGroup.style.display = needsCampus ? 'block' : 'none';
+  dept.required = !!needsDept;
+  campus.required = !!needsCampus;
+  if (!needsDept) dept.value = '';
+  if (!needsCampus) campus.value = '';
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  hideMessages();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  try {
+    const res = await apiFetch('/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      window.location.href = '/';
+    } else {
+      showError(data.error || '登录失败');
+    }
+  } catch(err) {
+    showError('网络错误，请重试');
+  }
+}
+
+async function doRegister(e) {
+  e.preventDefault();
+  hideMessages();
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const password2 = document.getElementById('regPassword2').value;
+  const role = document.getElementById('regRole').value;
+  const dept_id = document.getElementById('regDept').value;
+  const campus = document.getElementById('regCampus').value;
+  const invite_code = document.getElementById('regCode').value.trim();
+
+  if (!name) { showError('请填写姓名'); return; }
+  if (!email.endsWith('@xdf.cn')) { showError('请使用新东方邮箱（@xdf.cn）'); return; }
+  if (password !== password2) { showError('两次密码不一致'); return; }
+  if (!role) { showError('请选择身份'); return; }
+  if (!deptOptionalRoles.has(role) && !dept_id) { showError('请选择部门'); return; }
+  if (role === 'store_manager' && !campus) { showError('请选择校区'); return; }
+
+  try {
+    const res = await apiFetch('/api/auth/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name, email, password, role, dept_id, campus, invite_code})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showSuccess('注册成功，请登录');
+      setTimeout(() => switchTab('login', {focusField: true}), 1000);
+    } else {
+      showError(data.error || '注册失败');
+    }
+  } catch(err) {
+    showError('网络错误，请重试');
+  }
+}
+
+document.querySelector('.auth-tabs')?.addEventListener('click', e => {
+  const tab = e.target.closest('[data-auth-tab]');
+  if (!tab) return;
+  switchTab(tab.dataset.authTab || 'login');
+});
+document.querySelector('.auth-tabs')?.addEventListener('keydown', e => {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+  const tabs = [...document.querySelectorAll('.auth-tab')];
+  const current = e.target.closest('[data-auth-tab]');
+  const index = tabs.indexOf(current);
+  if (index < 0) return;
+  e.preventDefault();
+  let next = index;
+  if (e.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+  if (e.key === 'ArrowRight') next = (index + 1) % tabs.length;
+  if (e.key === 'Home') next = 0;
+  if (e.key === 'End') next = tabs.length - 1;
+  tabs[next].focus();
+  switchTab(tabs[next].dataset.authTab || 'login');
+});
+document.getElementById('loginForm')?.addEventListener('submit', doLogin);
+document.getElementById('registerForm')?.addEventListener('submit', doRegister);
+document.getElementById('regRole')?.addEventListener('change', updateRegisterFields);
+
+loadDepts();
+loadRegisterOptions();
+</script>
+</body>
+</html>

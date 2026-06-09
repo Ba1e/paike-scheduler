@@ -1,0 +1,23 @@
+name: schedule-system
+
+services:
+  schedule:
+    build: .
+    container_name: schedule-system
+    restart: unless-stopped
+    ports:
+      - "5100:5100"
+    volumes:
+      - ./runtime-data:/app/data
+    working_dir: /app
+    environment:
+      - SCHED_DATA_DIR=/app/data
+      - SCHED_DB_PATH=/app/data/schedule.db
+      - SCHED_COOKIE_SECURE=0
+      - SCHED_TRUST_PROXY_HEADERS=0
+      - SCHED_TRUSTED_PROXY_IPS=127.0.0.1,::1
+      - SCHED_REQUEST_TIMING=1
+      - SCHED_SLOW_REQUEST_SECONDS=2
+      - GUNICORN_WORKERS=2
+      - GUNICORN_THREADS=4
+      - GUNICORN_TIMEOUT=120

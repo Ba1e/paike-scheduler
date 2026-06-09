@@ -1,0 +1,17 @@
+[
+  {
+    "id": "gaozhi",
+    "name": "高中班级部",
+    "description": "FY27暑秋高中素养课程排课"
+  },
+  {
+    "id": "yiduiyi",
+    "name": "高中一对一",
+    "description": ""
+  },
+  {
+    "id": "qingshao",
+    "name": "青少部",
+    "description": "FY27暑秋青少素养课程排课"
+  }
+]

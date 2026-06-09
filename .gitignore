@@ -1,0 +1,36 @@
+# 数据文件（服务器数据为准，不纳入版本控制）
+data.json
+data_original.json
+schedule.db
+schedule.db-shm
+schedule.db-wal
+runtime-data/
+departments/
+invite_codes.json
+sessions.json
+users.json
+BOOTSTRAP_CODE.txt
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# 系统文件
+.DS_Store
+
+# 临时文件
+.env
+.env.*
+!.env.example
+export_temp.xlsx
+history/
+release-artifacts/
+output/
+*.xlsx
+*.tar.gz
+*.log
+*.bak
+*.bak_*

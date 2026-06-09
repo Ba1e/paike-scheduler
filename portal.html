@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FY27 排课协作系统</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; min-height: 100vh; }
+.portal-header { background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 40px 24px; text-align: center; position: relative; }
+.portal-header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+.portal-header p { font-size: 14px; opacity: 0.8; }
+.user-bar { position: absolute; top: 20px; right: 24px; display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.user-bar .email { background: rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 16px; }
+.user-bar .role-badge { background: #ffc107; color: #333; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+.user-bar button { background: rgba(255,255,255,0.2); color: white; border: none; padding: 6px 14px; border-radius: 16px; font-size: 12px; cursor: pointer; transition: background 0.2s; }
+.user-bar button:hover { background: rgba(255,255,255,0.3); }
+.portal-body { max-width: 1000px; margin: -30px auto 40px; padding: 0 24px; position: relative; }
+.notice { background: #fff3e0; color: #e65100; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; display: none; }
+.notice.show { display: block; }
+.dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+.dept-card { background: white; border-radius: 12px; padding: 28px 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border-top: 4px solid #1a237e; text-decoration: none; color: inherit; display: block; }
+button.dept-card { width: 100%; font: inherit; text-align: left; border-left: 0; border-right: 0; border-bottom: 0; }
+.dept-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+.dept-card:focus-visible { outline: 2px solid #4f46e5; outline-offset: 3px; }
+.dept-card .icon { font-size: 36px; margin-bottom: 12px; }
+.dept-card h3 { font-size: 18px; font-weight: 600; color: #1a237e; margin-bottom: 6px; }
+.dept-card p { font-size: 13px; color: #666; line-height: 1.5; }
+.dept-card .status { margin-top: 12px; font-size: 11px; padding: 3px 10px; border-radius: 10px; display: inline-block; }
+.dept-card .status.active { background: #e8f5e9; color: #2e7d32; }
+.dept-card .status.empty { background: #fff3e0; color: #e65100; }
+.dept-card .terms-tag { display: inline-block; background: #e3f2fd; color: #1565c0; font-size: 11px; padding: 3px 10px; border-radius: 10px; margin-left: 6px; }
+.add-card { border: 2px dashed #ccc; background: #fafafa; border-top: none; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 180px; }
+.add-card:hover { border-color: #1a237e; background: #f5f7ff; }
+.add-card .icon { color: #999; }
+.add-card h3 { color: #999; }
+.admin-panel { background: white; border-radius: 12px; padding: 24px; margin-top: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+.admin-panel h2 { font-size: 16px; color: #1a237e; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.admin-panel .gen-form { display: flex; gap: 8px; align-items: end; margin-bottom: 16px; flex-wrap: wrap; padding: 12px; background: #f5f7ff; border-radius: 8px; }
+.admin-panel .gen-form label { font-size: 11px; color: #666; display: block; margin-bottom: 4px; }
+.admin-panel .gen-form select, .admin-panel .gen-form input { padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+.admin-panel .gen-form button { padding: 7px 16px; background: #1a237e; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.admin-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.admin-tab { border: 1px solid #d8def7; background: #f7f9ff; color: #1a237e; padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.admin-tab:focus-visible { outline:2px solid #4f46e5; outline-offset:2px; }
+.admin-tab.active { background: #1a237e; color: white; border-color: #1a237e; }
+.admin-view { display: none; }
+.admin-view.active { display: block; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.metric-card { background: #f7f9ff; border: 1px solid #e2e7fb; border-radius: 8px; padding: 12px; }
+.metric-card .label { color: #667; font-size: 12px; margin-bottom: 6px; }
+.metric-card .value { color: #1a237e; font-size: 22px; font-weight: 700; }
+.admin-note { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; color: #555; font-size: 12px; margin-bottom: 14px; line-height: 1.6; }
+.admin-table-wrap { overflow-x: auto; border: 1px solid #eee; border-radius: 8px; }
+.admin-data-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 760px; }
+.admin-data-table th, .admin-data-table td { padding: 9px 10px; text-align: left; border-bottom: 1px solid #eee; white-space: nowrap; }
+.admin-data-table th { background: #f5f7ff; color: #1a237e; font-weight: 700; }
+.admin-data-table tr:last-child td { border-bottom: none; }
+.admin-data-table select, .admin-data-table input { padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; max-width: 150px; }
+.admin-data-table .row-btn { background: white; border: 1px solid #ddd; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-right: 4px; }
+.admin-data-table .save-btn { color: #1a237e; border-color: #c7d2fe; }
+.admin-data-table .delete-btn { color: #c62828; border-color: #ffcdd2; }
+.status-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #eef2ff; color: #1a237e; font-size: 11px; }
+.status-pill.warn { background: #fff3e0; color: #e65100; }
+.status-pill.ok { background: #e8f5e9; color: #2e7d32; }
+.invite-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.invite-table th, .invite-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #eee; }
+.invite-table th { background: #f5f7ff; color: #1a237e; font-weight: 600; }
+.invite-table .code { font-family: ui-monospace, "SF Mono", monospace; background: #f5f5f5; padding: 2px 6px; border-radius: 3px; }
+.invite-table .status-unused { color: #2e7d32; }
+.invite-table .status-used { color: #999; }
+.invite-table .copy-btn, .invite-table .del-btn { background: none; border: 1px solid #ddd; padding: 3px 8px; border-radius: 3px; font-size: 11px; cursor: pointer; }
+.invite-table .del-btn { color: #c62828; }
+.invite-table .copy-btn:hover { background: #f5f7ff; }
+.footer { text-align: center; padding: 20px; font-size: 12px; color: #999; }
+.modal-bg { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; align-items: center; justify-content: center; }
+.modal-bg.show { display: flex; }
+.modal-box { background: white; border-radius: 12px; padding: 28px; width: 400px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+.modal-box h3 { margin-bottom: 16px; color: #1a237e; }
+.modal-box .field { margin-bottom: 12px; }
+.modal-box .field label { font-size: 12px; color: #666; display: block; margin-bottom: 4px; }
+.modal-box .field input { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+.modal-box .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.modal-box .actions button { padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.modal-box .actions .cancel { border: 1px solid #ddd; background: white; }
+.modal-box .actions .ok { border: none; background: #1a237e; color: white; font-weight: 500; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #323232; color: white; padding: 10px 20px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 1000; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="portal-header">
+  <h1>FY27 排课协作系统</h1>
+  <p>选择部门进入对应的排课看板</p>
+  <div class="user-bar" id="userBar"></div>
+</div>
+<div class="portal-body">
+  <div class="notice" id="notice"></div>
+  <div id="portalMoodBoard"></div>
+  <div class="dept-grid" id="deptGrid"></div>
+  <div class="admin-panel" id="adminPanel" style="display:none;">
+    <h2>管理员数据中心 <span style="font-size:12px;color:#999;font-weight:normal;">仅管理员可见</span></h2>
+    <div class="admin-tabs" role="tablist" aria-label="管理员数据中心">
+      <button type="button" class="admin-tab active" id="adminTabOverview" data-admin-view="overview" role="tab" aria-selected="true" aria-controls="adminOverviewView" tabindex="0">数据总览</button>
+      <button type="button" class="admin-tab" id="adminTabUsers" data-admin-view="users" role="tab" aria-selected="false" aria-controls="adminUsersView" tabindex="-1">账号管理</button>
+      <button type="button" class="admin-tab" id="adminTabInvites" data-admin-view="invites" role="tab" aria-selected="false" aria-controls="adminInvitesView" tabindex="-1">邀请码管理</button>
+    </div>
+    <div class="admin-view active" id="adminOverviewView" role="tabpanel" aria-labelledby="adminTabOverview">
+      <div id="adminOverview">正在加载数据总览...</div>
+    </div>
+    <div class="admin-view" id="adminUsersView" role="tabpanel" aria-labelledby="adminTabUsers">
+      <div class="admin-note">可在这里调整账号身份和权限范围。总监、主管、大区经理按部门管理；店长还需要绑定校区；教务和管理员可跨部门。</div>
+      <div id="adminUsers">正在加载账号...</div>
+    </div>
+    <div class="admin-view" id="adminInvitesView" role="tabpanel" aria-labelledby="adminTabInvites">
+      <div class="admin-note">邀请码现在只区分身份，不提前绑定部门、校区或大区。老师注册时选择自己的部门和范围，系统会按注册信息限制后续可修改内容。</div>
+      <div class="gen-form">
+        <div>
+        <label>角色</label>
+        <select id="genRole">
+          <option value="user">普通用户</option>
+          <option value="jiaowu">教务（跨部门）</option>
+          <option value="store_manager">店长</option>
+          <option value="supervisor">教学主管</option>
+          <option value="regional_manager">大区经理</option>
+          <option value="director">总监</option>
+          <option value="admin">管理员</option>
+        </select>
+        </div>
+        <div>
+          <label>数量</label>
+          <input type="number" id="genCount" value="1" min="1" max="50" style="width:80px;">
+        </div>
+        <button data-portal-action="generate-invites">生成邀请码</button>
+        <button data-portal-action="export-unused-invites" style="background:#2e7d32;">导出未使用邀请码</button>
+      </div>
+    <table class="invite-table" id="inviteTable">
+      <thead><tr>
+          <th>邀请码</th><th>身份</th><th>状态</th><th>使用者</th><th>生成时间</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="footer">FY27 排课协作系统 v2.0</div>
+
+<div class="modal-bg" id="addModal" data-close-on-backdrop="addModal" role="dialog" aria-modal="true" aria-labelledby="addModalTitle" tabindex="-1">
+  <div class="modal-box">
+    <h3 id="addModalTitle">新建部门</h3>
+    <div class="field">
+      <label>部门ID（英文，用于URL）</label>
+      <input type="text" id="newDeptId" placeholder="如 qingshaonian">
+    </div>
+    <div class="field">
+      <label>部门名称</label>
+      <input type="text" id="newDeptName" placeholder="如 青少年部">
+    </div>
+    <div class="field">
+      <label>部门描述</label>
+      <input type="text" id="newDeptDesc" placeholder="可选">
+    </div>
+    <div class="actions">
+      <button class="cancel" data-portal-action="close-add-modal">取消</button>
+      <button class="ok" data-portal-action="create-dept">创建</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="passwordModal" data-close-on-backdrop="passwordModal" role="dialog" aria-modal="true" aria-labelledby="passwordModalTitle" tabindex="-1">
+  <div class="modal-box">
+    <h3 id="passwordModalTitle">重置密码</h3>
+    <div class="admin-note" id="passwordModalUser"></div>
+    <div class="field">
+      <label>新密码</label>
+      <input id="resetPasswordInput" type="password" autocomplete="new-password" placeholder="至少 6 位">
+    </div>
+    <div class="field">
+      <label>确认密码</label>
+      <input id="resetPasswordConfirm" type="password" autocomplete="new-password" placeholder="再次输入新密码">
+    </div>
+    <div class="actions">
+      <button class="cancel" data-portal-action="close-password-modal">取消</button>
+      <button class="ok" data-portal-action="submit-reset-password">确认重置</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="portalConfirmModal" data-close-on-backdrop="portalConfirmModal" role="dialog" aria-modal="true" aria-labelledby="portalConfirmTitle" tabindex="-1">
+  <div class="modal-box">
+    <h3 id="portalConfirmTitle">确认操作</h3>
+    <div class="admin-note" id="portalConfirmBody" style="white-space:pre-wrap;overflow-wrap:anywhere;"></div>
+    <div class="actions">
+      <button class="cancel" data-portal-action="cancel-confirm">取消</button>
+      <button class="ok" id="portalConfirmSubmit" data-portal-action="submit-confirm">确认</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/app_utils.js"></script>
+<script>
+const icons = ['📚', '🎓', '🏫', '📖', '🎯', '💡', '🔬', '🎨'];
+let currentUser = null;
+let allDepts = [];
+let adminOverviewLoaded = false;
+let adminUsersLoaded = false;
+let campusOptions = [];
+let portalModalFocusStack = [];
+let pendingPortalConfirmResolve = null;
+const PORTAL_MODAL_IDS = ['addModal', 'passwordModal', 'portalConfirmModal'];
+const roleLabels = window.AppUtils.roleLabels;
+const escapeHtml = window.AppUtils.escapeHtml;
+const escapeAttr = window.AppUtils.escapeAttr;
+const apiFetch = window.AppUtils.apiFetch;
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+function portalFocusableElements(modal) {
+  if (!modal) return [];
+  const selector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+  return [...modal.querySelectorAll(selector)].filter(el => {
+    const style = window.getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  });
+}
+function showPortalModal(id, focusSelector = null) {
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  if (!modal.classList.contains('show')) {
+    portalModalFocusStack.push({id, element: document.activeElement});
+  }
+  modal.classList.add('show');
+  setTimeout(() => {
+    const target = focusSelector ? modal.querySelector(focusSelector) : null;
+    const focusable = portalFocusableElements(modal);
+    (target || focusable[0] || modal).focus?.();
+  }, 0);
+}
+function hidePortalModal(id, options = {}) {
+  const modal = document.getElementById(id);
+  if (!modal) return;
+  modal.classList.remove('show');
+  const stackIndex = portalModalFocusStack.map(item => item.id).lastIndexOf(id);
+  const item = stackIndex >= 0 ? portalModalFocusStack.splice(stackIndex, 1)[0] : null;
+  if (options.restoreFocus !== false && item?.element && document.contains(item.element)) {
+    setTimeout(() => item.element.focus?.(), 0);
+  }
+}
+function closePortalModal(id) {
+  if (id === 'passwordModal') closePasswordModal();
+  else if (id === 'portalConfirmModal') closePortalConfirmModal(false);
+  else closeModal();
+}
+function handlePortalModalKeydown(e) {
+  const modals = PORTAL_MODAL_IDS.map(id => document.getElementById(id)).filter(modal => modal?.classList.contains('show'));
+  const modal = modals[modals.length - 1];
+  if (!modal) return false;
+  if (modal.id === 'portalConfirmModal' && e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    closePortalConfirmModal(true);
+    return true;
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closePortalModal(modal.id);
+    return true;
+  }
+  if (e.key !== 'Tab') return false;
+  const focusable = portalFocusableElements(modal);
+  if (!focusable.length) {
+    e.preventDefault();
+    modal.focus?.();
+    return true;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+    return true;
+  }
+  if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+    return true;
+  }
+  return false;
+}
+function closeModal() { hidePortalModal('addModal'); }
+
+function closePortalConfirmModal(confirmed = false) {
+  hidePortalModal('portalConfirmModal');
+  const resolve = pendingPortalConfirmResolve;
+  pendingPortalConfirmResolve = null;
+  if (resolve) resolve(Boolean(confirmed));
+}
+
+function confirmPortalAction(options = {}) {
+  const {
+    title = '确认操作',
+    message = '',
+    confirmText = '确认',
+    danger = false,
+  } = options;
+  const titleEl = document.getElementById('portalConfirmTitle');
+  const bodyEl = document.getElementById('portalConfirmBody');
+  const submit = document.getElementById('portalConfirmSubmit');
+  if (pendingPortalConfirmResolve) closePortalConfirmModal(false);
+  if (titleEl) {
+    titleEl.textContent = title;
+    titleEl.style.color = danger ? '#b91c1c' : '#1a237e';
+  }
+  if (bodyEl) bodyEl.textContent = message;
+  if (submit) {
+    submit.textContent = confirmText;
+    submit.style.background = danger ? '#b91c1c' : '#1a237e';
+  }
+  showPortalModal('portalConfirmModal', '#portalConfirmSubmit');
+  return new Promise(resolve => {
+    pendingPortalConfirmResolve = resolve;
+  });
+}
+
+async function loadMe() {
+  const res = await apiFetch('/api/auth/me');
+  if (!res.ok) { window.location.href = '/auth'; return; }
+  currentUser = await res.json();
+  const isAdmin = currentUser.role === 'admin';
+  const roleLabel = roleLabels[currentUser.role] || currentUser.role;
+  const bar = document.getElementById('userBar');
+  bar.innerHTML = `
+    <span class="email">${escapeHtml([currentUser.name || currentUser.email, roleLabel, currentUser.campus || currentUser.district || ''].filter(Boolean).join(' · '))}${isAdmin ? '<span class="role-badge">管理员</span>' : ''}</span>
+    <button data-portal-action="logout">登出</button>
+  `;
+  if (isAdmin) {
+    document.getElementById('adminPanel').style.display = 'block';
+  }
+}
+
+function switchAdminView(view) {
+  document.getElementById('adminOverviewView').classList.toggle('active', view === 'overview');
+  document.getElementById('adminUsersView').classList.toggle('active', view === 'users');
+  document.getElementById('adminInvitesView').classList.toggle('active', view === 'invites');
+  document.querySelectorAll('.admin-tab').forEach(tab => {
+    const active = tab.dataset.adminView === view;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    tab.tabIndex = active ? 0 : -1;
+  });
+  if (view === 'overview' && !adminOverviewLoaded) loadAdminOverview();
+  if (view === 'users' && !adminUsersLoaded) loadAdminUsers();
+  if (view === 'invites') loadInvites();
+}
+
+async function logout() {
+  await apiFetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/auth';
+}
+
+function showNotice() {
+  const params = new URLSearchParams(window.location.search);
+  const n = document.getElementById('notice');
+  if (params.get('denied') === '1') {
+    n.textContent = '⚠ 你没有访问该部门的权限';
+    n.classList.add('show');
+  } else if (params.get('missing') === '1') {
+    n.textContent = '⚠ 该部门不存在';
+    n.classList.add('show');
+  }
+}
+
+async function loadDepts() {
+  const res = await apiFetch('/api/departments?include_counts=1');
+  allDepts = await res.json();
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  const grid = document.getElementById('deptGrid');
+  grid.innerHTML = allDepts.map((d, i) => `
+    <a class="dept-card" href="/dept/${escapeAttr(d.id)}/">
+      <div class="icon">${icons[i % icons.length]}</div>
+      <h3>${escapeHtml(d.name)}</h3>
+      <p>${escapeHtml(d.description || '')}</p>
+      <div style="margin-top:12px;">
+        <span class="status ${d.count > 0 ? 'active' : 'empty'}">${d.count > 0 ? d.count + ' 个班级' : '暂无数据'}</span>
+        ${d.terms_count ? `<span class="terms-tag">${d.terms_count} 个批次</span>` : ''}
+      </div>
+    </a>
+  `).join('') + (isAdmin ? `
+    <button type="button" class="dept-card add-card" data-portal-action="open-add-modal">
+      <div class="icon" style="font-size:48px;">+</div>
+      <h3>新建部门</h3>
+    </button>
+  ` : '');
+
+  if (isAdmin) {
+    loadAdminOverview();
+    loadInvites();
+  }
+}
+
+function formatBytes(bytes) {
+  const n = Number(bytes || 0);
+  if (n >= 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
+  if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+  return n + ' B';
+}
+
+function workflowLabel(status) {
+  return {draft:'准备中', scheduling:'排课中', reviewing:'审核中', confirmed:'已确认'}[status] || status || '未知';
+}
+
+async function loadAdminOptions() {
+  try {
+    const res = await apiFetch('/api/auth/options');
+    if (!res.ok) return;
+    const data = await res.json();
+    campusOptions = data.campuses || [];
+  } catch(e) {}
+}
+
+async function loadAdminOverview() {
+  const box = document.getElementById('adminOverview');
+  box.innerHTML = '<div class="admin-note">正在汇总各部门、批次、用户和数据库状态...</div>';
+  const res = await apiFetch('/api/admin/overview');
+  if (!res.ok) {
+    box.innerHTML = '<div class="admin-note" style="color:#c62828;">数据总览加载失败，请确认当前账号是管理员。</div>';
+    return;
+  }
+  const data = await res.json();
+  adminOverviewLoaded = true;
+  const s = data.summary || {};
+  const roleText = Object.entries(data.users?.role_counts || {}).map(([role, count]) => `${roleLabels[role] || role} ${count} 人`).join('，') || '暂无用户';
+  box.innerHTML = `
+    <div class="metric-grid">
+      <div class="metric-card"><div class="label">部门</div><div class="value">${s.departments_count || 0}</div></div>
+      <div class="metric-card"><div class="label">批次</div><div class="value">${s.terms_count || 0}</div></div>
+      <div class="metric-card"><div class="label">课程/班级</div><div class="value">${s.courses_count || 0}</div></div>
+      <div class="metric-card"><div class="label">教师</div><div class="value">${s.teachers_count || 0}</div></div>
+      <div class="metric-card"><div class="label">校区</div><div class="value">${s.campuses_count || 0}</div></div>
+      <div class="metric-card"><div class="label">教室</div><div class="value">${s.rooms_count || 0}</div></div>
+      <div class="metric-card"><div class="label">系统用户</div><div class="value">${s.users_count || 0}</div></div>
+      <div class="metric-card"><div class="label">未使用邀请码</div><div class="value">${s.invite_unused_count || 0}</div></div>
+    </div>
+    <div class="admin-note">
+      <b>数据库：</b>${data.database?.exists ? '正常' : '未找到'}，大小 ${escapeHtml(formatBytes(data.database?.size))}。
+      <b style="margin-left:16px;">用户：</b>${escapeHtml(roleText)}。
+      <b style="margin-left:16px;">服务器时间：</b>${escapeHtml(data.server_time || '')}
+    </div>
+    <h2 style="font-size:15px;margin:18px 0 10px;">部门汇总</h2>
+    <div class="admin-table-wrap">
+      <table class="admin-data-table">
+        <thead><tr><th>部门</th><th>批次数</th><th>启用批次</th><th>课程/班级</th><th>教师</th><th>校区</th><th>教室</th></tr></thead>
+        <tbody>${(data.departments || []).map(d => `
+          <tr>
+            <td>${escapeHtml(d.name)}</td>
+            <td>${d.terms_count || 0}</td>
+            <td>${d.active_terms_count || 0}</td>
+            <td>${d.courses_count || 0}</td>
+            <td>${d.teachers_count || 0}</td>
+            <td>${d.campuses_count || 0}</td>
+            <td>${d.rooms_count || 0}</td>
+          </tr>
+        `).join('') || '<tr><td colspan="7" style="text-align:center;color:#999;">暂无部门数据</td></tr>'}</tbody>
+      </table>
+    </div>
+    <h2 style="font-size:15px;margin:18px 0 10px;">批次明细</h2>
+    <div class="admin-table-wrap">
+      <table class="admin-data-table">
+        <thead><tr><th>部门</th><th>批次</th><th>状态</th><th>课程/班级</th><th>教师</th><th>校区</th><th>教室</th><th>最后更新</th><th>备份</th><th>入口</th></tr></thead>
+        <tbody>${(data.terms || []).map(t => `
+          <tr>
+            <td>${escapeHtml(t.dept_name)}</td>
+            <td>${escapeHtml(t.term_name)} ${t.is_default ? '<span class="status-pill ok">默认</span>' : ''} ${t.archived ? '<span class="status-pill warn">已归档</span>' : ''}</td>
+            <td><span class="status-pill">${escapeHtml(workflowLabel(t.workflow_status))}</span></td>
+            <td>${t.courses_count || 0}</td>
+            <td>${t.teachers_count || 0}</td>
+            <td>${t.campuses_count || 0}</td>
+            <td>${t.rooms_count || 0}</td>
+            <td>${escapeHtml(t.updated_at || '暂无')}</td>
+            <td>${escapeHtml(t.latest_backup_at || '暂无')}</td>
+            <td><a href="/dept/${escapeAttr(t.dept_id)}/${escapeAttr(t.term_id)}/" style="color:#1a237e;">进入</a></td>
+          </tr>
+        `).join('') || '<tr><td colspan="10" style="text-align:center;color:#999;">暂无批次数据</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function createDept() {
+  const id = document.getElementById('newDeptId').value.trim();
+  const name = document.getElementById('newDeptName').value.trim();
+  const desc = document.getElementById('newDeptDesc').value.trim();
+  if (!id || !name) { toast('请填写部门ID和名称'); return; }
+  if (!/^[a-z0-9_-]+$/.test(id)) { toast('部门ID只能包含小写字母、数字、下划线和横线'); return; }
+  const res = await apiFetch('/api/departments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, name, description: desc })
+  });
+  const data = await res.json();
+  if (data.ok) { closeModal(); loadDepts(); toast('部门已创建'); }
+  else toast(data.error || '创建失败');
+}
+
+function deptOptionsHtml(selected) {
+  return '<option value="">不限定</option>' + allDepts.map(d => `<option value="${escapeAttr(d.id)}" ${d.id === selected ? 'selected' : ''}>${escapeHtml(d.name)}</option>`).join('');
+}
+
+function campusOptionsHtml(selected) {
+  return '<option value="">不绑定</option>' + campusOptions.map(c => `<option value="${escapeAttr(c)}" ${c === selected ? 'selected' : ''}>${escapeHtml(c.replace('教学区',''))}</option>`).join('');
+}
+
+function roleOptionsHtml(selected) {
+  const roles = ['user','store_manager','supervisor','regional_manager','director','jiaowu','admin'];
+  return roles.map(r => `<option value="${r}" ${r === selected ? 'selected' : ''}>${escapeHtml(roleLabels[r] || r)}</option>`).join('');
+}
+
+function updateAdminUserScope(userId) {
+  const role = document.getElementById(`userRole_${userId}`).value;
+  const dept = document.getElementById(`userDept_${userId}`);
+  const campus = document.getElementById(`userCampus_${userId}`);
+  const needsDept = !['admin','jiaowu'].includes(role);
+  const needsCampus = role === 'store_manager';
+  dept.disabled = !needsDept;
+  campus.disabled = !needsCampus;
+  if (!needsDept) dept.value = '';
+  if (!needsCampus) campus.value = '';
+}
+function updateAdminUserScopeFromEl(el) {
+  updateAdminUserScope(el.dataset.userId || '');
+}
+
+async function loadAdminUsers() {
+  await loadAdminOptions();
+  const box = document.getElementById('adminUsers');
+  box.innerHTML = '<div class="admin-note">正在加载账号...</div>';
+  const res = await apiFetch('/api/admin/users');
+  if (!res.ok) {
+    box.innerHTML = '<div class="admin-note" style="color:#c62828;">账号列表加载失败</div>';
+    return;
+  }
+  const users = await res.json();
+  adminUsersLoaded = true;
+  box.innerHTML = `
+    <div class="admin-table-wrap">
+      <table class="admin-data-table">
+        <thead><tr><th>姓名</th><th>邮箱</th><th>身份</th><th>部门</th><th>校区</th><th>创建时间</th><th>操作</th></tr></thead>
+        <tbody>${users.map(u => `
+          <tr>
+            <td>${escapeHtml(u.name || '')}</td>
+            <td>${escapeHtml(u.email || '')}</td>
+            <td><select id="userRole_${escapeAttr(u.id)}" data-user-id="${escapeAttr(u.id)}" data-admin-role-select="1">${roleOptionsHtml(u.role)}</select></td>
+            <td><select id="userDept_${escapeAttr(u.id)}">${deptOptionsHtml(u.dept_id || '')}</select></td>
+            <td><select id="userCampus_${escapeAttr(u.id)}">${campusOptionsHtml(u.campus || '')}</select></td>
+            <td>${escapeHtml(u.created_at || '')}</td>
+            <td>
+              <button class="row-btn save-btn" data-portal-action="save-admin-user" data-user-id="${escapeAttr(u.id)}">保存</button>
+              <button class="row-btn" style="background:#1565c0;color:#fff;" data-portal-action="open-reset-password" data-user-id="${escapeAttr(u.id)}" data-email="${escapeAttr(u.email || '')}">重置密码</button>
+              ${u.id !== currentUser.id ? `<button class="row-btn delete-btn" data-portal-action="delete-admin-user" data-user-id="${escapeAttr(u.id)}" data-email="${escapeAttr(u.email || '')}">删除</button>` : ''}
+            </td>
+          </tr>
+        `).join('') || '<tr><td colspan="7" style="text-align:center;color:#999;">暂无账号</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+  users.forEach(u => updateAdminUserScope(u.id));
+}
+
+async function saveAdminUser(userId) {
+  const body = {
+    role: document.getElementById(`userRole_${userId}`).value,
+    dept_id: document.getElementById(`userDept_${userId}`).value,
+    campus: document.getElementById(`userCampus_${userId}`).value,
+  };
+  const res = await apiFetch('/api/admin/users/' + encodeURIComponent(userId), {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) { toast(data.error || '保存失败'); return; }
+  toast('账号权限已更新');
+  adminOverviewLoaded = false;
+  loadAdminUsers();
+}
+
+async function deleteAdminUser(userId, email) {
+  const ok = await confirmPortalAction({
+    title: '删除账号',
+    message: `确认删除账号 ${email}？删除后该账号会立即无法登录。`,
+    confirmText: '确认删除',
+    danger: true,
+  });
+  if (!ok) return;
+  const res = await apiFetch('/api/admin/users/' + encodeURIComponent(userId), {method:'DELETE'});
+  const data = await res.json();
+  if (!res.ok || data.error) { toast(data.error || '删除失败'); return; }
+  toast('账号已删除');
+  adminOverviewLoaded = false;
+  loadAdminUsers();
+}
+
+let resetPasswordTarget = null;
+function openResetPasswordModal(userId, email) {
+  resetPasswordTarget = {userId, email};
+  document.getElementById('passwordModalUser').textContent = `账号：${email || userId}`;
+  document.getElementById('resetPasswordInput').value = '';
+  document.getElementById('resetPasswordConfirm').value = '';
+  showPortalModal('passwordModal', '#resetPasswordInput');
+}
+function closePasswordModal() {
+  resetPasswordTarget = null;
+  hidePortalModal('passwordModal');
+  document.getElementById('resetPasswordInput').value = '';
+  document.getElementById('resetPasswordConfirm').value = '';
+}
+async function submitResetPassword() {
+  if (!resetPasswordTarget) return;
+  const {userId, email} = resetPasswordTarget;
+  const pwd = document.getElementById('resetPasswordInput').value;
+  const confirmPwd = document.getElementById('resetPasswordConfirm').value;
+  if (!pwd) return;
+  if (pwd.length < 6) { toast('密码至少6位'); return; }
+  if (pwd !== confirmPwd) { toast('两次输入的密码不一致'); return; }
+  const res = await apiFetch('/api/admin/users/' + encodeURIComponent(userId) + '/reset-password', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ password: pwd }),
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) { toast(data.error || '重置失败'); return; }
+  closePasswordModal();
+  toast(`${email} 密码已重置`);
+}
+
+async function loadInvites() {
+  const res = await apiFetch('/api/auth/invites');
+  if (!res.ok) return;
+  const list = await res.json();
+  const tbody = document.querySelector('#inviteTable tbody');
+  tbody.innerHTML = list.slice().reverse().map(c => `
+    <tr>
+      <td><span class="code">${escapeHtml(c.code)}</span></td>
+      <td>${escapeHtml(roleLabels[c.role] || c.role)}</td>
+      <td class="${c.used_by ? 'status-used' : 'status-unused'}">${c.used_by ? '已使用' : '未使用'}</td>
+      <td>${escapeHtml(c.used_by || '')}</td>
+      <td>${escapeHtml(c.created_at)}</td>
+      <td>
+        <button class="copy-btn" data-portal-action="copy-code" data-code="${escapeAttr(c.code)}">复制</button>
+        ${!c.used_by ? `<button class="del-btn" data-portal-action="delete-invite" data-code="${escapeAttr(c.code)}">删除</button>` : ''}
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" style="text-align:center;color:#999;padding:20px;">暂无邀请码</td></tr>';
+}
+
+function copyCode(code) {
+  navigator.clipboard.writeText(code).then(() => toast('已复制：' + code));
+}
+
+function downloadTextFile(filename, content) {
+  const blob = new Blob([content], {type: 'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function formatInviteText(codes, title) {
+  const now = new Date().toLocaleString('zh-CN', {hour12: false});
+  const lines = [
+    title,
+    `导出时间：${now}`,
+    '说明：邀请码只区分身份。注册时本人选择部门，店长需选择校区。',
+    '',
+  ];
+  codes.forEach((c, idx) => {
+    lines.push(`${idx + 1}. ${c.code}    ${roleLabels[c.role] || c.role}`);
+  });
+  return lines.join('\n') + '\n';
+}
+
+function downloadInvites(codes, title, filenamePrefix) {
+  if (!codes || !codes.length) {
+    toast('没有可导出的邀请码');
+    return;
+  }
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+  downloadTextFile(`${filenamePrefix}_${stamp}.txt`, formatInviteText(codes, title));
+}
+
+async function exportUnusedInvites() {
+  const res = await apiFetch('/api/auth/invites');
+  if (!res.ok) { toast('邀请码加载失败'); return; }
+  const list = await res.json();
+  const unused = list.filter(c => !c.used_by);
+  downloadInvites(unused, '未使用邀请码', '未使用邀请码');
+}
+
+async function generateInvites() {
+  const role = document.getElementById('genRole').value;
+  const count = parseInt(document.getElementById('genCount').value, 10) || 1;
+  const body = { role, count };
+  const res = await apiFetch('/api/auth/invites', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (data.ok) {
+    toast(`已生成 ${data.codes.length} 个邀请码`);
+    downloadInvites(data.codes, `本次生成的邀请码：${roleLabels[role] || role}`, `${roleLabels[role] || role}_邀请码`);
+    loadInvites();
+  } else toast(data.error || '生成失败');
+}
+
+async function delInvite(code) {
+  const ok = await confirmPortalAction({
+    title: '删除邀请码',
+    message: '确认删除该邀请码？',
+    confirmText: '确认删除',
+    danger: true,
+  });
+  if (!ok) return;
+  const res = await apiFetch('/api/auth/invites/' + encodeURIComponent(code), { method: 'DELETE' });
+  const data = await res.json();
+  if (data.ok) { toast('已删除'); loadInvites(); }
+  else toast(data.error || '删除失败');
+}
+
+document.addEventListener('click', e => {
+  const adminTab = e.target.closest('[data-admin-view]');
+  if (adminTab) {
+    switchAdminView(adminTab.dataset.adminView || 'overview');
+    return;
+  }
+  const backdrop = e.target.closest('[data-close-on-backdrop]');
+  if (backdrop && e.target === backdrop) {
+    closePortalModal(backdrop.dataset.closeOnBackdrop || 'addModal');
+    return;
+  }
+  const actionEl = e.target.closest('[data-portal-action]');
+  if (!actionEl) return;
+  const action = actionEl.dataset.portalAction;
+  const userId = actionEl.dataset.userId || '';
+  const email = actionEl.dataset.email || '';
+  const code = actionEl.dataset.code || '';
+  if (action === 'logout') logout();
+  else if (action === 'open-add-modal') showPortalModal('addModal', '#newDeptId');
+  else if (action === 'close-add-modal') closeModal();
+  else if (action === 'create-dept') createDept();
+  else if (action === 'close-password-modal') closePasswordModal();
+  else if (action === 'submit-reset-password') submitResetPassword();
+  else if (action === 'cancel-confirm') closePortalConfirmModal(false);
+  else if (action === 'submit-confirm') closePortalConfirmModal(true);
+  else if (action === 'generate-invites') generateInvites();
+  else if (action === 'export-unused-invites') exportUnusedInvites();
+  else if (action === 'save-admin-user') saveAdminUser(userId);
+  else if (action === 'open-reset-password') openResetPasswordModal(userId, email);
+  else if (action === 'delete-admin-user') deleteAdminUser(userId, email);
+  else if (action === 'copy-code') copyCode(code);
+  else if (action === 'delete-invite') delInvite(code);
+});
+document.addEventListener('change', e => {
+  const select = e.target.closest('[data-admin-role-select="1"]');
+  if (!select) return;
+  updateAdminUserScopeFromEl(select);
+});
+document.addEventListener('keydown', e => {
+  if (handlePortalModalKeydown(e)) return;
+  const adminTab = e.target.closest('[data-admin-view]');
+  if (!adminTab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+  const tabs = [...document.querySelectorAll('.admin-tab')];
+  const index = tabs.indexOf(adminTab);
+  if (index < 0) return;
+  e.preventDefault();
+  let next = index;
+  if (e.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+  if (e.key === 'ArrowRight') next = (index + 1) % tabs.length;
+  if (e.key === 'Home') next = 0;
+  if (e.key === 'End') next = tabs.length - 1;
+  tabs[next]?.focus();
+  switchAdminView(tabs[next]?.dataset.adminView || 'overview');
+});
+
+(async () => {
+  showNotice();
+  await loadMe();
+  window.AppUtils?.initMoodBoard({root: 'portalMoodBoard', apiFetch, toast});
+  await loadDepts();
+})();
+</script>
+</body>
+</html>

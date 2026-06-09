@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FY27暑秋排课协作看版</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f7fa; color: #333; font-size: 13px; }
+.header { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0; position: sticky; top: 0; z-index: 100; }
+.header-row { display: flex; align-items: center; height: 48px; padding: 0 20px; gap: 16px; }
+.brand-section { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.header h1 { font-size: 14px; font-weight: 600; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.header-stats { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #6b7280; white-space: nowrap; }
+.header-stats .divider { color: #d1d5db; }
+.header .sync-status { font-size: 10px; padding: 2px 8px; border-radius: 9999px; background: #ecfdf5; color: #059669; font-weight: 500; }
+.header .sync-status.saving { background: #fffbeb; color: #d97706; }
+.header .presence-chip { display:none; align-items:center; gap:5px; height:22px; padding:0 8px; border:0; border-radius:9999px; background:#eef2ff; color:#3730a3; font-size:10px; font-weight:600; max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+.header .presence-chip.visible { display:inline-flex; }
+.header .presence-chip:hover { background:#e0e7ff; }
+.header .presence-chip.has-editors { background:#fff7ed; color:#c2410c; }
+.header .presence-chip.has-editors:hover { background:#ffedd5; }
+.header-center { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.term-select { background: #f9fafb; color: #374151; border: 1px solid #e5e7eb; padding: 5px 28px 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b7280'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; transition: border-color 0.15s; }
+.term-select:hover { border-color: #9ca3af; }
+.term-select:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.1); }
+.header-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.header .hbtn { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px; border-radius: 6px; font-size: 12px; font-weight: 500; color: #374151; background: transparent; border: none; cursor: pointer; transition: background 0.12s, color 0.12s; white-space: nowrap; }
+.header .hbtn:hover { background: #f3f4f6; color: #111827; }
+.header .hbtn:active { background: #e5e7eb; }
+.header .hbtn-primary { background: #4f46e5; color: #fff; }
+.header .hbtn-primary:hover { background: #4338ca; color: #fff; }
+.header-sep { width: 1px; height: 20px; background: #e5e7eb; margin: 0 4px; }
+.header .user-chip { font-size: 12px; color: #6b7280; white-space: nowrap; padding: 0 4px; }
+.header .hbtn-logout { color: #9ca3af; }
+.header .hbtn-logout:hover { color: #ef4444; background: #fef2f2; }
+.more-menu { position: relative; }
+.more-menu-dropdown { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04); padding: 4px; min-width: 160px; z-index: 200; }
+.more-menu-dropdown.show { display: block; }
+.more-menu-dropdown .menu-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px; border: none; background: none; border-radius: 5px; font-size: 12px; color: #374151; cursor: pointer; text-align: left; transition: background 0.1s; }
+.more-menu-dropdown .menu-item:hover { background: #f3f4f6; }
+.more-menu-dropdown .menu-divider { height: 1px; background: #f3f4f6; margin: 4px 0; }
+.tabs { display: flex; background: #fff; border-bottom: 2px solid #e0e0e0; padding: 0 24px; }
+.tab { appearance:none; -webkit-appearance:none; border:0; background:transparent; color:#374151; font:inherit; padding: 12px 20px; cursor: pointer; font-weight: 500; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+.tab:hover { background: #f5f5f5; }
+.tab:focus-visible { outline:2px solid #4f46e5; outline-offset:-2px; background:#eef2ff; }
+.tab.active { border-bottom-color: #1a237e; color: #1a237e; }
+.container { padding: 16px 24px; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; align-items: center; }
+.filter-group { display: flex; align-items: center; gap: 4px; }
+.filter-group label { font-size: 12px; color: #666; white-space: nowrap; }
+.filter-group select, .filter-group input { padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
+.filter-group select { min-width: 100px; }
+.batch-toolbar { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 18px); z-index: 220; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; max-width: min(920px, calc(100vw - 32px)); background: rgba(255,255,255,0.98); border: 1px solid #dbe1ea; border-radius: 8px; padding: 9px 12px; box-shadow: 0 10px 28px rgba(15,23,42,0.16), 0 2px 8px rgba(15,23,42,0.08); opacity: 0; pointer-events: none; transition: opacity .16s ease, transform .16s ease; }
+.batch-toolbar.is-visible { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.batch-toolbar.is-readonly { opacity: .72; }
+.batch-toolbar .batch-count { font-weight: 700; color: #1a237e; white-space: nowrap; }
+.batch-toolbar .batch-divider { width: 1px; height: 20px; background: #e5e7eb; }
+.batch-toolbar label { font-size: 12px; color: #666; white-space: nowrap; }
+.batch-toolbar select, .batch-toolbar input { padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
+.batch-toolbar input { width: 180px; }
+.batch-toolbar .batch-hint { font-size: 11px; color: #777; min-width: 160px; }
+.batch-review-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+.batch-review-summary div { border:1px solid #e2e8f0; background:#f8fafc; border-radius:6px; padding:8px 10px; min-width:0; }
+.batch-review-summary span { display:block; color:#64748b; font-size:11px; margin-bottom:3px; }
+.batch-review-summary b { display:block; color:#0f172a; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.batch-review-warning { border:1px solid #fed7aa; background:#fff7ed; color:#9a3412; border-radius:6px; padding:9px 10px; margin-bottom:12px; font-size:12px; line-height:1.45; }
+.batch-review-warning b { display:block; margin-bottom:3px; color:#7c2d12; }
+.batch-review-warning p { margin:0 0 5px; }
+.batch-review-list { border:1px solid #e2e8f0; border-radius:6px; overflow:hidden; background:#fff; margin-bottom:12px; }
+.batch-review-title { background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:7px 10px; color:#334155; font-size:12px; font-weight:700; }
+.batch-review-course { display:grid; grid-template-columns:90px minmax(0,1fr); gap:4px 8px; padding:7px 10px; border-bottom:1px solid #f1f5f9; font-size:12px; }
+.batch-review-course b { color:#1d4ed8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.batch-review-course span { color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.batch-review-course em { grid-column:2; color:#64748b; font-style:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.batch-review-more, .batch-review-empty { padding:7px 10px; color:#64748b; font-size:12px; background:#fafafa; }
+.cancel-review-panel { display:flex; flex-direction:column; gap:10px; color:#334155; }
+.cancel-review-main { border:1px solid #e2e8f0; background:#f8fafc; border-radius:7px; padding:10px 12px; }
+.cancel-review-main b { display:block; color:#0f172a; font-size:13px; line-height:1.4; overflow-wrap:anywhere; }
+.cancel-review-main span { display:block; color:#64748b; font-size:12px; line-height:1.45; margin-top:3px; overflow-wrap:anywhere; }
+.cancel-review-kpis { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.cancel-review-kpi { min-width:0; border:1px solid #e2e8f0; background:#fff; border-radius:6px; padding:8px 9px; }
+.cancel-review-kpi b { display:block; color:#0f172a; font-size:15px; line-height:1.1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cancel-review-kpi span { display:block; margin-top:3px; color:#64748b; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cancel-review-checks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+.cancel-review-check { border:1px solid #e2e8f0; background:#fff; border-radius:6px; padding:8px 9px; font-size:11px; line-height:1.4; }
+.cancel-review-check.good { background:#ecfdf5; border-color:#bbf7d0; color:#047857; }
+.cancel-review-check.warn { background:#fffbeb; border-color:#fde68a; color:#92400e; }
+.cancel-review-check.bad { background:#fef2f2; border-color:#fecaca; color:#991b1b; }
+.cancel-review-check b { display:block; color:inherit; font-size:11px; margin-bottom:2px; }
+.cancel-review-check span { display:block; color:inherit; opacity:.86; overflow-wrap:anywhere; }
+.cancel-review-suite { border:1px solid #e2e8f0; background:#fff; border-radius:7px; overflow:hidden; }
+.cancel-review-suite-title { background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:7px 10px; color:#334155; font-size:12px; font-weight:700; }
+.cancel-review-suite-list { display:flex; flex-direction:column; }
+.cancel-review-suite-row { display:grid; grid-template-columns:58px minmax(0,1fr) 64px; gap:8px; padding:7px 10px; border-top:1px solid #f1f5f9; font-size:11px; align-items:center; }
+.cancel-review-suite-row:first-child { border-top:0; }
+.cancel-review-suite-row b { color:#1e3a8a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cancel-review-suite-row span { color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cancel-review-suite-row em { color:#64748b; font-style:normal; text-align:right; white-space:nowrap; }
+.cancel-review-note { border:1px dashed #cbd5e1; background:#fff; border-radius:6px; padding:8px 9px; color:#475569; font-size:11px; line-height:1.5; overflow-wrap:anywhere; }
+.table-wrap { overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+table { width: 100%; border-collapse: collapse; min-width: 1200px; }
+th { background: #f8f9fa; padding: 10px 6px; text-align: left; font-size: 11px; color: #666; border-bottom: 2px solid #e0e0e0; position: sticky; top: 0; z-index: 10; white-space: nowrap; }
+td { padding: 6px; border-bottom: 1px solid #f0f0f0; font-size: 12px; vertical-align: middle; }
+tr:hover { background: #f8f9ff; }
+tr.conflict { background: #fff3f3 !important; }
+tr.conflict td:first-child { border-left: 3px solid #f44336; }
+tr.inactive-course { background: #f8fafc !important; color:#64748b; }
+tr.inactive-course td:first-child { border-left: 3px solid #94a3b8; }
+.editable { background: #fffde7; border: 1px dashed #ffc107; padding: 4px 6px; border-radius: 3px; cursor: pointer; min-width: 60px; display: inline-block; }
+.editable:hover { background: #fff9c4; border-color: #ff9800; }
+.editable:focus { outline: 2px solid #1a237e; background: white; border-style: solid; }
+.readonly-text { display:inline-block; min-width:60px; padding:4px 6px; color:#455a64; background:#f5f7fa; border-radius:3px; }
+.edit-lock-note { color:#795548; background:#fff3e0; border:1px solid #ffe0b2; border-radius:4px; padding:4px 8px; }
+.conflict-icon { color: #f44336; font-weight: bold; cursor: pointer; font-size: 14px; }
+.conflict-popup { position: absolute; left: 28px; top: 0; background: white; border: 2px solid #f44336; border-radius: 6px; padding: 10px 14px; font-size: 11px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 220px; max-width: 350px; white-space: normal; }
+td:has(.conflict-popup) { position: relative; }
+.summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.card { background: white; border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.card.clickable { cursor: pointer; transition: box-shadow .15s ease, transform .15s ease; }
+.card.clickable:hover { box-shadow: 0 3px 10px rgba(15,23,42,0.14); transform: translateY(-1px); }
+.card .num { font-size: 24px; font-weight: 700; color: #1a237e; }
+.card .label { font-size: 11px; color: #666; margin-top: 4px; }
+.card.danger .num { color: #f44336; }
+.card.warn .num { color: #ff9800; }
+.card.lifecycle .num { color: #0e7490; }
+.card.muted .num { color: #64748b; }
+.card.capacity .num { color: #b45309; }
+.hidden { display: none !important; }
+#importModal:not(.hidden) { display: flex; }
+#reasonModal:not(.hidden) { display: flex; }
+.system-status-card { background:#fff; border:1px solid #e2e8f0; border-radius:8px; box-shadow:0 1px 3px rgba(15,23,42,.08); overflow:hidden; }
+.system-status-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:12px 14px; border-bottom:1px solid #eef2f7; }
+.system-status-title { color:#111827; font-weight:800; font-size:14px; line-height:1.3; }
+.system-status-sub { margin-top:2px; color:#64748b; font-size:11px; line-height:1.4; overflow-wrap:anywhere; }
+.system-status-time { flex:0 0 auto; color:#64748b; font-size:11px; white-space:nowrap; }
+.system-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px; padding:12px 14px; }
+.system-kpi { min-width:0; border:1px solid #e2e8f0; border-radius:7px; background:#f8fafc; padding:9px 10px; }
+.system-kpi.good { background:#ecfdf5; border-color:#bbf7d0; }
+.system-kpi.warn { background:#fffbeb; border-color:#fde68a; }
+.system-kpi.bad { background:#fef2f2; border-color:#fecaca; }
+.system-kpi span { display:block; color:#64748b; font-size:10px; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.system-kpi b { display:block; color:#0f172a; font-size:15px; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.system-kpi small { display:block; margin-top:4px; color:#64748b; font-size:10px; line-height:1.35; overflow-wrap:anywhere; }
+.system-status-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,.75fr); gap:10px; padding:0 14px 14px; }
+.system-section { min-width:0; border:1px solid #e2e8f0; border-radius:7px; background:#fff; overflow:hidden; }
+.system-section-title { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 10px; background:#f8fafc; border-bottom:1px solid #e2e8f0; color:#334155; font-size:12px; font-weight:800; }
+.system-section-title small { color:#64748b; font-weight:500; }
+.system-detail-list { display:grid; grid-template-columns:120px minmax(0,1fr); gap:0; font-size:11px; }
+.system-detail-list dt, .system-detail-list dd { padding:7px 10px; border-top:1px solid #f1f5f9; min-width:0; }
+.system-detail-list dt:first-of-type, .system-detail-list dd:first-of-type { border-top:0; }
+.system-detail-list dt { color:#64748b; background:#fcfcfd; }
+.system-detail-list dd { color:#0f172a; overflow-wrap:anywhere; }
+.system-issues, .system-slow-list { display:flex; flex-direction:column; gap:6px; padding:9px 10px; }
+.system-issue, .system-slow-item { border:1px solid #e2e8f0; border-radius:6px; background:#fcfcfd; padding:7px 8px; color:#334155; font-size:11px; line-height:1.45; }
+.system-issue.bad, .system-slow-item.bad { border-color:#fecaca; background:#fef2f2; color:#991b1b; }
+.system-slow-item.warn { border-color:#fde68a; background:#fffbeb; color:#92400e; }
+.system-slow-main { display:flex; align-items:center; justify-content:space-between; gap:8px; font-weight:800; color:inherit; }
+.system-slow-main span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.system-slow-meta { margin-top:3px; color:inherit; opacity:.78; overflow-wrap:anywhere; }
+.system-empty { padding:10px; color:#64748b; font-size:11px; line-height:1.5; }
+.changed-cell { background: #fff3e0 !important; border: 1px solid #ff9800 !important; position: relative; }
+.changed-cell::after { content: '●'; position: absolute; top: 2px; right: 4px; color: #ff9800; font-size: 8px; }
+.capacity-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.capacity-table th { background: #1a237e; color: white; padding: 9px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,0.15); font-size: 10px; white-space: nowrap; position: sticky; top: 0; z-index: 10; font-weight: 500; letter-spacing: 0.3px; }
+.capacity-table thead tr:nth-child(2) th { top: 32px; background: #283593; font-size: 10px; padding: 6px 4px; position: sticky; left: auto; }
+.capacity-table tbody tr:nth-child(even) td { background: #fafbfc; }
+.capacity-table tbody tr:hover td { background: #f0f4ff; }
+.capacity-table .teacher-name { text-align: left; font-weight: 500; white-space: nowrap; padding: 6px 10px; min-width: 60px; max-width: none; position: sticky; background: white; z-index: 5; border-right: 1px solid #eee; }
+.capacity-table tbody tr:nth-child(even) .teacher-name { background: #fafbfc; }
+.capacity-table tbody tr:hover .teacher-name { background: #f0f4ff; }
+.capacity-table .capacity-subject-cell { background: #eef5ff; color: #153e8a; font-weight: 800; border-left: 4px solid #2563eb; border-right-color: #bfdbfe; letter-spacing: 0; }
+.capacity-table tbody tr:nth-child(even) .capacity-subject-cell { background: #e6f0ff; }
+.capacity-table tbody tr:hover .capacity-subject-cell { background: #dbeafe; color: #1e3a8a; }
+.capacity-table .teacher-name:nth-child(1) { left: 0; }
+.capacity-table .teacher-name:nth-child(2) { left: 60px; }
+.capacity-table .teacher-name:nth-child(3) { left: 120px; }
+.capacity-table th:nth-child(1), .capacity-table th:nth-child(2), .capacity-table th:nth-child(3) { position: sticky; z-index: 20; }
+.capacity-table th:nth-child(1) { left: 0; }
+.capacity-table th:nth-child(2) { left: 60px; }
+.capacity-table th:nth-child(3) { left: 120px; }
+.capacity-table thead tr:nth-child(2) th:nth-child(1), .capacity-table thead tr:nth-child(2) th:nth-child(2), .capacity-table thead tr:nth-child(2) th:nth-child(3) { position: sticky; z-index: 20; left: auto; }
+.capacity-table .empty-slot { background: transparent; color: #ddd; min-width: 40px; }
+.subject-divider td { background: #f5f5f5 !important; font-weight: 600; font-size: 12px; text-align: left !important; padding: 10px 14px !important; border-bottom: 2px solid #1a237e !important; color: #1a237e; }
+.jump-highlight { outline: 3px solid #f59e0b !important; outline-offset: -3px; box-shadow: inset 0 0 0 2px rgba(245,158,11,0.45), 0 0 0 3px rgba(245,158,11,0.18) !important; position: relative; z-index: 6; }
+.conflict-card { background: white; border-radius: 6px; padding: 12px 16px; margin-bottom: 8px; border-left: 4px solid #f44336; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.conflict-card .title { font-weight: 600; margin-bottom: 4px; }
+.conflict-card .item { margin: 4px 0 4px 16px; font-size: 12px; }
+.conflict-page-head { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:10px; }
+.conflict-page-head h3 { margin:0; color:#c62828; font-size:16px; line-height:1.2; }
+.conflict-filter-summary { display:flex; flex-wrap:wrap; gap:5px; justify-content:flex-end; color:#64748b; font-size:11px; }
+.conflict-filter-summary span { border:1px solid #e2e8f0; background:#fff; border-radius:999px; padding:2px 7px; white-space:nowrap; }
+.conflict-filter-summary .active { border-color:#c7d2fe; background:#eef2ff; color:#3730a3; font-weight:700; }
+.conflict-toolbar { display:grid; grid-template-columns:minmax(260px,auto) 1fr; gap:12px; align-items:center; background:white; border:1px solid #e6e8ef; border-radius:8px; padding:9px 10px; margin-bottom:10px; }
+.conflict-filter-left { display:flex; align-items:center; gap:8px; min-width:0; }
+.conflict-filter-label { flex:0 0 auto; border:1px solid #c7d2fe; background:#eef2ff; color:#3730a3; border-radius:5px; padding:4px 8px; font-size:11px; font-weight:700; }
+.conflict-filter-fields { display:grid; grid-template-columns:repeat(4,minmax(112px,1fr)) auto; gap:8px; align-items:end; justify-content:flex-end; min-width:0; }
+.conflict-hidden-type { display:none; }
+.conflict-quickbar { display:flex; gap:6px; overflow-x:auto; -webkit-overflow-scrolling:touch; padding:0; margin:0; scrollbar-width:none; }
+.conflict-quickbar::-webkit-scrollbar { display:none; }
+.conflict-chip { flex:0 0 auto; border:1px solid #dbe1ea; background:#fff; color:#334155; border-radius:999px; padding:4px 9px; font-size:12px; cursor:pointer; }
+.conflict-chip.active { background:#1a237e; color:#fff; border-color:#1a237e; }
+.conflict-filter-reset { border:1px solid #dbe1ea; background:#f8fafc; color:#475569; border-radius:4px; padding:5px 9px; font-size:12px; cursor:pointer; height:29px; }
+.conflict-filter-reset:hover { background:#eef2ff; color:#3730a3; border-color:#c7d2fe; }
+.conflict-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:8px; }
+.conflict-card-main { min-width:0; flex:1; }
+.conflict-title-line { display:flex; flex-wrap:wrap; gap:5px; align-items:center; font-weight:700; color:#111827; line-height:1.45; }
+.conflict-meta-line { color:#64748b; font-size:11px; margin-top:3px; }
+.conflict-actions { flex:0 0 auto; display:flex; justify-content:flex-end; }
+.conflict-status-row { margin:6px 0; display:flex; flex-wrap:wrap; gap:5px; align-items:center; }
+.conflict-class-list { display:flex; flex-direction:column; gap:4px; margin:7px 0 2px; }
+.conflict-class-item { font-size:12px; color:#334155; background:#f8fafc; border:1px solid #eef2f7; border-radius:5px; padding:5px 7px; line-height:1.45; }
+.conflict-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:12px; }
+.conflict-summary .metric { background:white; border:1px solid #e6e8ef; border-radius:8px; padding:10px 12px; }
+.conflict-summary .metric b { display:block; color:#c62828; font-size:22px; }
+.conflict-load-more { width:100%; border:1px solid #dbe1ea; background:#fff; color:#334155; border-radius:8px; padding:10px 12px; font-size:12px; cursor:pointer; margin-top:8px; }
+.conflict-load-more:hover { background:#f8fafc; border-color:#94a3b8; }
+.conflict-list-foot { color:#64748b; font-size:12px; text-align:center; padding:10px 0 2px; }
+.conflict-badge { display:inline-block; font-size:11px; border-radius:10px; padding:2px 7px; margin-left:6px; background:#ffebee; color:#c62828; }
+.conflict-badge.cross { background:#e3f2fd; color:#1565c0; }
+.conflict-badge.role { background:#eef2ff; color:#3730a3; }
+.conflict-suggestions { margin-top:10px; padding:10px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; }
+.suggestion-head { font-size:12px; font-weight:700; color:#1f2937; margin-bottom:8px; }
+.suggestion-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.suggestion-head-count { color:#64748b; font-size:11px; font-weight:500; white-space:nowrap; }
+.suggestion-row { display:grid; grid-template-columns:74px 1fr; gap:8px; padding:8px 0; border-top:1px solid #e5e7eb; }
+.suggestion-row.review { background:#fff7ed; margin:0 -6px; padding:8px 6px; border-radius:6px; border-top-color:#fed7aa; }
+.suggestion-row:first-of-type { border-top:0; padding-top:0; }
+.suggestion-row b { display:block; font-size:12px; color:#111827; margin-bottom:3px; }
+.suggestion-row p { margin:0; color:#4b5563; line-height:1.45; font-size:12px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.suggestion-metrics { display:flex; flex-wrap:wrap; gap:5px; margin:5px 0 6px; }
+.suggestion-metric { display:inline-flex; align-items:center; gap:3px; border-radius:4px; padding:2px 6px; font-size:11px; background:#f1f5f9; color:#334155; border:1px solid #e2e8f0; }
+.suggestion-metric.good { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
+.suggestion-metric.warn { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+.suggestion-metric.bad { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+.suggestion-score { display:flex; flex-wrap:wrap; gap:6px; align-items:flex-start; margin:6px 0; padding:7px 8px; border-radius:6px; background:#fff; border:1px solid #e2e8f0; font-size:11px; color:#334155; }
+.suggestion-score-badge { flex:0 0 auto; border-radius:5px; padding:3px 7px; font-weight:700; background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; }
+.suggestion-score-list { display:flex; flex-direction:column; gap:3px; min-width:0; flex:1; }
+.suggestion-score-line { overflow-wrap:anywhere; line-height:1.35; }
+.suggestion-score-line.good { color:#047857; }
+.suggestion-score-line.warn { color:#92400e; }
+.suggestion-validation { border:1px solid #dbe1ea; border-radius:6px; background:#fff; overflow:hidden; margin-bottom:8px; }
+.suggestion-validation-head { display:grid; grid-template-columns:92px 1fr; gap:9px; padding:9px 10px; background:#f8fafc; border-bottom:1px solid #e2e8f0; align-items:center; }
+.suggestion-validation-score { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:58px; border-radius:6px; background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; }
+.suggestion-validation-score.good { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
+.suggestion-validation-score.warn { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+.suggestion-validation-score.bad { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+.suggestion-validation-score b { display:block; font-size:22px; line-height:1; margin:0; color:inherit; }
+.suggestion-validation-score span { display:block; font-size:10px; margin-top:4px; color:inherit; }
+.suggestion-validation-title { font-size:12px; font-weight:700; color:#111827; }
+.suggestion-validation-summary { color:#475569; font-size:11px; line-height:1.45; margin-top:3px; overflow-wrap:anywhere; }
+.suggestion-check-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; padding:8px 10px; border-bottom:1px solid #eef2f7; }
+.suggestion-check { display:flex; justify-content:space-between; gap:6px; align-items:center; border:1px solid #e2e8f0; border-radius:5px; padding:5px 7px; font-size:11px; color:#334155; background:#fff; min-width:0; }
+.suggestion-check span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.suggestion-check b { font-size:10px; margin:0; color:#047857; white-space:nowrap; }
+.suggestion-check.fail { background:#fef2f2; border-color:#fecaca; color:#991b1b; }
+.suggestion-check.fail b { color:#b91c1c; }
+.suggestion-coordination { padding:8px 10px; border-bottom:1px solid #eef2f7; background:#fff; }
+.suggestion-coordination-title { color:#334155; font-size:11px; font-weight:700; margin-bottom:3px; }
+.suggestion-coordination-summary { color:#475569; font-size:11px; line-height:1.45; overflow-wrap:anywhere; }
+.suggestion-coordination-kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; margin-top:7px; }
+.suggestion-coordination-kpis div { min-width:0; border:1px solid #e2e8f0; background:#f8fafc; border-radius:5px; padding:5px 6px; }
+.suggestion-coordination-kpis b { display:block; color:#0f172a; font-size:13px; line-height:1.1; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.suggestion-coordination-kpis span { display:block; margin-top:2px; color:#64748b; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.suggestion-review-list { padding:7px 10px; border-bottom:1px solid #eef2f7; display:flex; flex-direction:column; gap:4px; }
+.suggestion-review-item { font-size:11px; color:#475569; line-height:1.4; padding-left:12px; position:relative; }
+.suggestion-review-item::before { content:''; position:absolute; left:0; top:7px; width:5px; height:5px; border-radius:50%; background:#f59e0b; }
+.suggestion-teacher-impact { padding:8px 10px; display:flex; flex-direction:column; gap:5px; }
+.suggestion-teacher-line { display:grid; grid-template-columns:72px 1fr; gap:6px; align-items:start; font-size:11px; color:#334155; }
+.suggestion-teacher-line b { margin:0; font-size:11px; color:#111827; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.suggestion-teacher-route { display:flex; flex-wrap:wrap; gap:4px; min-width:0; }
+.suggestion-teacher-route span { border:1px solid #cbd5e1; background:#f8fafc; border-radius:4px; padding:2px 5px; overflow-wrap:anywhere; }
+.suggestion-reasons { margin:0; padding-left:16px; color:#4b5563; line-height:1.45; font-size:12px; }
+.suggestion-reasons li { margin:2px 0; overflow-wrap:anywhere; }
+.suggestion-route { display:flex; flex-direction:column; gap:4px; margin-top:6px; color:#475569; font-size:11px; }
+.suggestion-route-card { border:1px solid #e2e8f0; background:#fff; border-radius:6px; padding:7px 8px; display:flex; flex-direction:column; gap:6px; }
+.suggestion-route-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.suggestion-route-title { font-weight:700; color:#334155; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.suggestion-route-status { border-radius:4px; padding:2px 6px; font-size:10px; font-weight:700; white-space:nowrap; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+.suggestion-route-status.good { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
+.suggestion-route-status.warn { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+.suggestion-route-status.bad { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+.suggestion-route-line { display:flex; flex-wrap:wrap; gap:4px; align-items:center; min-width:0; }
+.suggestion-route-chip { display:inline-flex; align-items:center; max-width:100%; border:1px solid #cbd5e1; background:#fff; border-radius:4px; padding:2px 5px; white-space:normal; overflow-wrap:anywhere; }
+.suggestion-route-arrow { color:#94a3b8; }
+.suggestion-route-halves { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:5px; }
+.suggestion-route-half { min-width:0; border:1px solid #eef2f7; background:#f8fafc; border-radius:5px; padding:5px 6px; }
+.suggestion-route-half b { display:block; margin:0 0 3px; font-size:10px; color:#64748b; }
+.suggestion-route-half span { color:#334155; line-height:1.35; overflow-wrap:anywhere; }
+.suggestion-route-flags { display:flex; flex-wrap:wrap; gap:4px; }
+.suggestion-route-flag { border-radius:4px; padding:2px 6px; font-size:10px; border:1px solid #e2e8f0; color:#475569; background:#f8fafc; }
+.suggestion-route-flag.good { background:#ecfdf5; color:#047857; border-color:#bbf7d0; }
+.suggestion-route-flag.warn { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+.suggestion-route-flag.bad { background:#fef2f2; color:#b91c1c; border-color:#fecaca; }
+.suggestion-route-transitions { display:flex; flex-wrap:wrap; gap:4px; }
+.suggestion-route-transition { border:1px solid #e2e8f0; background:#fff; color:#475569; border-radius:4px; padding:2px 5px; font-size:10px; }
+.suggestion-route-transition.warn { background:#fffbeb; border-color:#fde68a; color:#b45309; }
+.suggestion-route-transition.bad { background:#fef2f2; border-color:#fecaca; color:#b91c1c; }
+.suggestion-plan { display:flex; flex-direction:column; gap:3px; margin-top:6px; padding:6px 8px; border-radius:5px; background:#fff; border:1px dashed #cbd5e1; font-size:11px; color:#334155; }
+.suggestion-plan-step { overflow-wrap:anywhere; }
+.suggestion-detail-toggle { margin-top:7px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; overflow:hidden; }
+.suggestion-detail-toggle summary { list-style:none; cursor:pointer; padding:7px 9px; color:#334155; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.suggestion-detail-toggle summary::-webkit-details-marker { display:none; }
+.suggestion-detail-toggle summary::after { content:'展开'; flex:0 0 auto; color:#64748b; font-weight:500; }
+.suggestion-detail-toggle[open] summary { border-bottom:1px solid #eef2f7; background:#f8fafc; }
+.suggestion-detail-toggle[open] summary::after { content:'收起'; }
+.suggestion-detail-body { padding:8px 9px; }
+.suggestion-detail-body .suggestion-reasons { margin-top:0; }
+.suggestion-action-note { display:inline-block; margin-top:6px; font-size:11px; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:4px; padding:3px 7px; }
+.suggestion-actions { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.suggestion-more { width:100%; margin-top:8px; border:1px dashed #cbd5e1; background:#fff; color:#334155; border-radius:6px; padding:7px 10px; font-size:12px; cursor:pointer; }
+.suggestion-more:hover { background:#f8fafc; border-color:#94a3b8; }
+.suggestion-body { display:grid; grid-template-columns:minmax(360px, 1fr) minmax(340px, 0.9fr); gap:14px; align-items:start; }
+.suggestion-mobile-summary { display:none; }
+.suggestion-mobile-pill { min-width:0; border:1px solid #e2e8f0; background:#fff; border-radius:5px; padding:5px 6px; font-size:11px; color:#334155; line-height:1.3; }
+.suggestion-mobile-pill b { display:block; font-size:10px; color:#64748b; margin-bottom:1px; }
+.suite-preview { border:1px solid #e2e8f0; border-radius:6px; background:#fff; overflow:hidden; }
+.suite-preview-head { display:flex; justify-content:space-between; gap:8px; align-items:center; padding:8px 10px; background:#f8fafc; border-bottom:1px solid #e2e8f0; }
+.suite-preview-title { font-weight:700; font-size:12px; color:#1f2937; }
+.suite-preview-meta { color:#64748b; font-size:11px; white-space:nowrap; }
+.suite-preview-overview { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; padding:8px 10px; background:#fff; border-bottom:1px solid #eef2f7; }
+.suite-kpi { min-width:0; border:1px solid #e2e8f0; background:#f8fafc; border-radius:5px; padding:6px 7px; }
+.suite-kpi b { display:block; margin:0; color:#0f172a; font-size:15px; line-height:1.1; }
+.suite-kpi span { display:block; margin-top:2px; color:#64748b; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.suite-subject-strip { display:flex; flex-wrap:wrap; gap:4px; padding:0 10px 8px; background:#fff; border-bottom:1px solid #eef2f7; }
+.suite-subject-pill { border:1px solid #e2e8f0; background:#f8fafc; color:#64748b; border-radius:999px; padding:2px 7px; font-size:11px; }
+.suite-subject-pill.on { border-color:#bbf7d0; background:#ecfdf5; color:#047857; font-weight:700; }
+.suite-preview-grid { display:grid; grid-template-columns:repeat(5,minmax(70px,1fr)); }
+.suite-slot { min-height:86px; border-right:1px solid #eef2f7; padding:7px; background:#fff; }
+.suite-slot:last-child { border-right:0; }
+.suite-slot.changed { background:#fff7ed; }
+.suite-slot-head { display:flex; justify-content:space-between; gap:4px; align-items:center; color:#475569; font-size:11px; font-weight:700; margin-bottom:5px; }
+.suite-chip { display:block; border:1px solid #dbeafe; background:#eff6ff; color:#1e3a8a; border-radius:4px; padding:4px 5px; margin-top:4px; font-size:11px; line-height:1.25; overflow-wrap:anywhere; }
+.suite-chip.moved { border-color:#f59e0b; background:#fffbeb; color:#92400e; }
+.suite-chip.conflict { border-color:#fecaca; background:#fef2f2; color:#991b1b; }
+.suite-chip-subject { font-weight:700; margin-right:3px; }
+.suite-empty { color:#94a3b8; font-size:11px; padding-top:4px; }
+.suite-impact-flow { display:flex; flex-direction:column; gap:5px; padding:8px 10px; border-top:1px solid #eef2f7; background:#fff; }
+.suite-impact-title { color:#334155; font-size:11px; font-weight:700; }
+.suite-impact-step { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:6px; align-items:center; color:#334155; font-size:11px; }
+.suite-impact-node { min-width:0; border:1px solid #e2e8f0; background:#f8fafc; border-radius:5px; padding:4px 6px; overflow-wrap:anywhere; }
+.suite-impact-node.after { border-color:#f59e0b; background:#fffbeb; color:#92400e; }
+.suite-impact-arrow { color:#94a3b8; font-weight:700; }
+.suite-preview-note { padding:7px 10px; border-top:1px solid #eef2f7; color:#64748b; font-size:11px; line-height:1.4; background:#fcfcfd; }
+.room-plan { border:1px solid #e2e8f0; border-radius:6px; background:#fff; overflow:hidden; margin-bottom:8px; }
+.room-plan-head { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; padding:8px 10px; background:#f8fafc; border-bottom:1px solid #e2e8f0; }
+.room-plan-title { font-size:12px; font-weight:700; color:#1f2937; line-height:1.35; }
+.room-plan-meta { color:#64748b; font-size:11px; white-space:nowrap; }
+.room-plan-target { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; padding:8px 10px; border-bottom:1px solid #eef2f7; }
+.room-plan-kpi { min-width:0; border:1px solid #e2e8f0; background:#f8fafc; border-radius:5px; padding:6px 7px; }
+.room-plan-kpi b { display:block; margin:0; color:#0f172a; font-size:14px; line-height:1.1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.room-plan-kpi span { display:block; margin-top:2px; color:#64748b; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.room-checks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; padding:8px 10px; border-bottom:1px solid #eef2f7; }
+.room-check { border:1px solid #e2e8f0; border-radius:5px; padding:5px 7px; background:#fff; color:#334155; font-size:11px; min-width:0; }
+.room-check.fail { background:#fffbeb; border-color:#fde68a; color:#92400e; }
+.room-check b { display:block; margin:0 0 2px; color:inherit; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.room-check span { display:block; color:inherit; opacity:.82; line-height:1.35; overflow-wrap:anywhere; }
+.room-steps { padding:8px 10px; display:flex; flex-direction:column; gap:5px; }
+.room-step { display:grid; grid-template-columns:18px 1fr; gap:6px; align-items:start; color:#334155; font-size:11px; line-height:1.4; }
+.room-step i { font-style:normal; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%; background:#eef2ff; color:#3730a3; font-size:10px; font-weight:700; }
+.room-plan-shared { display:inline-flex; align-items:center; border:1px solid #bfdbfe; background:#eff6ff; color:#1d4ed8; border-radius:4px; padding:2px 6px; font-size:10px; font-weight:700; margin-left:5px; }
+.release-eval { border:1px solid #e2e8f0; border-radius:6px; background:#fff; overflow:hidden; margin-bottom:8px; }
+.release-eval-head { display:grid; grid-template-columns:88px 1fr; gap:9px; padding:9px 10px; background:#fff7ed; border-bottom:1px solid #fed7aa; align-items:center; }
+.release-score { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:58px; border-radius:6px; background:#fffbeb; color:#b45309; border:1px solid #fde68a; }
+.release-score b { display:block; font-size:21px; line-height:1; color:inherit; margin:0; }
+.release-score span { display:block; font-size:10px; margin-top:4px; color:inherit; }
+.release-eval-title { font-size:12px; font-weight:700; color:#111827; }
+.release-eval-summary { color:#7c2d12; font-size:11px; line-height:1.45; margin-top:3px; overflow-wrap:anywhere; }
+.release-kpis { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; padding:8px 10px; border-bottom:1px solid #eef2f7; }
+.release-kpi { min-width:0; border:1px solid #e2e8f0; background:#f8fafc; border-radius:5px; padding:6px 7px; }
+.release-kpi b { display:block; margin:0; color:#0f172a; font-size:14px; line-height:1.1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.release-kpi span { display:block; margin-top:2px; color:#64748b; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.release-checks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; padding:8px 10px; border-bottom:1px solid #eef2f7; }
+.release-check { border:1px solid #e2e8f0; border-radius:5px; padding:5px 7px; background:#fff; color:#334155; font-size:11px; min-width:0; }
+.release-check.warn { background:#fffbeb; border-color:#fde68a; color:#92400e; }
+.release-check.bad { background:#fef2f2; border-color:#fecaca; color:#991b1b; }
+.release-check.good { background:#ecfdf5; border-color:#bbf7d0; color:#047857; }
+.release-check b { display:block; margin:0 0 2px; color:inherit; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.release-check span { display:block; color:inherit; opacity:.84; line-height:1.35; overflow-wrap:anywhere; }
+.release-review { padding:8px 10px; display:flex; flex-direction:column; gap:4px; }
+.release-review-item { color:#475569; font-size:11px; line-height:1.4; padding-left:12px; position:relative; }
+.release-review-item::before { content:''; position:absolute; left:0; top:7px; width:5px; height:5px; border-radius:50%; background:#f59e0b; }
+.presence-popover { display:none; position:absolute; right:20px; top:42px; z-index:240; width:min(420px, calc(100vw - 32px)); background:#fff; border:1px solid #dbe1ea; border-radius:8px; box-shadow:0 10px 28px rgba(15,23,42,.16); padding:10px; }
+.presence-popover.show { display:block; }
+.presence-popover h4 { margin:0; font-size:12px; color:#1f2937; }
+.presence-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding-bottom:8px; border-bottom:1px solid #eef2f7; }
+.presence-head-subtitle { margin-top:2px; color:#64748b; font-size:10px; line-height:1.35; }
+.presence-summary { display:flex; flex-wrap:wrap; gap:5px; justify-content:flex-end; }
+.presence-summary span { border:1px solid #e2e8f0; background:#f8fafc; color:#475569; border-radius:999px; padding:2px 7px; font-size:10px; white-space:nowrap; }
+.presence-alerts { display:flex; flex-direction:column; gap:6px; padding-top:8px; }
+.presence-alert { border:1px solid #fde68a; background:#fffbeb; color:#92400e; border-radius:6px; padding:7px 8px; font-size:11px; line-height:1.4; }
+.presence-alert.bad { border-color:#fed7aa; background:#fff7ed; color:#c2410c; }
+.presence-alert b { display:block; font-size:11px; margin-bottom:2px; color:inherit; }
+.presence-alert span { display:block; color:inherit; overflow-wrap:anywhere; }
+.presence-group { padding-top:8px; }
+.presence-group-title { display:flex; align-items:center; justify-content:space-between; color:#475569; font-size:11px; font-weight:700; margin-bottom:5px; }
+.presence-group-title span:last-child { color:#94a3b8; font-weight:500; }
+.presence-user { padding:8px; border:1px solid #eef2f7; background:#fcfcfd; border-radius:6px; font-size:12px; color:#334155; margin-top:6px; }
+.presence-user:first-of-type { margin-top:0; }
+.presence-user.editing { border-color:#fed7aa; background:#fff7ed; }
+.presence-user.viewing { border-color:#bfdbfe; background:#eff6ff; }
+.presence-user-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+.presence-user b { color:#111827; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.presence-badge { flex:0 0 auto; border-radius:4px; padding:2px 6px; font-size:10px; font-weight:700; background:#f1f5f9; color:#475569; }
+.presence-badge.editing { background:#ffedd5; color:#c2410c; }
+.presence-badge.viewing { background:#dbeafe; color:#1d4ed8; }
+.presence-user span { display:block; color:#64748b; font-size:11px; overflow-wrap:anywhere; line-height:1.35; }
+.presence-action { color:#475569 !important; font-weight:600; margin-top:3px; }
+.presence-course { color:#0f172a !important; font-weight:700; margin-top:4px; }
+.presence-field { display:inline-block !important; margin:5px 0 0; padding:2px 6px; border-radius:4px; background:#fff; border:1px solid #e2e8f0; color:#334155 !important; font-size:10px !important; font-weight:700; }
+.presence-user.editing .presence-field { background:#ffedd5; border-color:#fdba74; color:#c2410c !important; }
+.presence-meta { margin-top:5px; color:#64748b !important; }
+.suggestion-meta { display:flex; flex-direction:column; gap:4px; align-items:stretch; }
+.suggestion-risk { align-self:start; text-align:center; border-radius:4px; padding:2px 5px; font-size:11px; background:#f3f4f6; color:#4b5563; }
+.suggestion-risk.低 { background:#ecfdf5; color:#047857; }
+.suggestion-risk.中 { background:#fffbeb; color:#b45309; }
+.suggestion-risk.需复核, .suggestion-risk.需协调 { background:#fef2f2; color:#b91c1c; }
+.suggestion-kind { text-align:center; border-radius:4px; padding:2px 5px; font-size:11px; background:#eef2ff; color:#3730a3; }
+.suggestion-empty { color:#6b7280; font-size:12px; }
+.toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 10px 20px; border-radius: 6px; font-size: 12px; z-index: 1000; opacity: 0; transition: opacity 0.3s; }
+.toast.show { opacity: 1; }
+.legend { font-size: 11px; color: #666; margin-left: auto; }
+.legend span { display: inline-block; width: 14px; height: 14px; vertical-align: middle; border-radius: 2px; margin-right: 2px; }
+.btn { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; }
+.link-btn { border:0; background:transparent; color:#1565c0; cursor:pointer; font-size:11px; padding:0 2px; margin-left:4px; }
+.link-btn:hover { text-decoration:underline; }
+.btn-refresh { background: #e3f2fd; color: #1565c0; }
+.btn-refresh:hover { background: #bbdefb; }
+.btn-export { background: #4caf50; color: white; margin-left: 8px; }
+.btn-export:hover { background: #388e3c; }
+.stat-row { display: flex; gap: 16px; font-size: 11px; color: #555; margin-top: 6px; }
+.stat-row b { color: #1a237e; }
+.desc-tag { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+button.desc-tag { cursor:pointer; font-family:inherit; }
+.desc-tag.renew { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+.desc-tag.new-class { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+.desc-tag.preset { background: #f3e5f5; color: #7b1fa2; border: 1px solid #ce93d8; }
+.desc-tag.preset-inactive { background: #fafafa; color: #888; border: 1px solid #ddd; }
+.desc-tag.cancelled { background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; }
+.desc-tag.merged { background:#ecfeff; color:#0e7490; border:1px solid #67e8f9; }
+.desc-tag.absorbed { background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; }
+.merge-drag-handle { cursor: grab; }
+.merge-drag-handle:active { cursor: grabbing; }
+tr.schedule-merge-drop-target td { background:#ecfeff !important; box-shadow: inset 0 0 0 2px #0e7490; }
+.merge-recommendations { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:8px; margin:10px 0 12px; }
+.merge-target-card { border:1px solid #dbeafe; background:#eff6ff; color:#1e3a8a; border-radius:6px; padding:8px 10px; cursor:pointer; text-align:left; }
+.merge-target-card:hover { border-color:#60a5fa; background:#dbeafe; }
+.merge-target-card.active { border-color:#0e7490; background:#ecfeff; color:#155e75; box-shadow:inset 0 0 0 1px #0e7490; }
+.merge-target-card.review { border-color:#fde68a; background:#fffbeb; color:#92400e; }
+.merge-target-card.danger { border-color:#fecaca; background:#fef2f2; color:#991b1b; }
+.merge-target-card b { display:block; font-size:12px; color:#0f172a; margin-bottom:3px; }
+.merge-target-card span { display:block; font-size:11px; line-height:1.45; }
+.merge-preview-warn { background:#fffbeb !important; border-color:#fde68a !important; color:#92400e !important; }
+.merge-preview-board { display:flex; flex-direction:column; gap:9px; color:#334155; }
+.merge-preview-flow { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:8px; align-items:stretch; }
+.merge-preview-node { min-width:0; border:1px solid #e2e8f0; background:#fff; border-radius:6px; padding:8px 9px; }
+.merge-preview-node b { display:block; color:#0f172a; font-size:12px; line-height:1.35; overflow-wrap:anywhere; }
+.merge-preview-node span { display:block; color:#64748b; font-size:11px; line-height:1.4; margin-top:3px; overflow-wrap:anywhere; }
+.merge-preview-arrow { align-self:center; color:#0e7490; font-weight:800; }
+.merge-preview-kpis { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+.merge-preview-kpi { min-width:0; border:1px solid #e2e8f0; background:#fff; border-radius:6px; padding:7px 8px; }
+.merge-preview-kpi b { display:block; color:#0f172a; font-size:15px; line-height:1.1; }
+.merge-preview-kpi span { display:block; margin-top:3px; color:#64748b; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.merge-preview-checks { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }
+.merge-preview-check { border:1px solid #e2e8f0; background:#fff; color:#334155; border-radius:5px; padding:5px 7px; font-size:11px; line-height:1.35; }
+.merge-preview-check.good { background:#ecfdf5; border-color:#bbf7d0; color:#047857; }
+.merge-preview-check.warn { background:#fffbeb; border-color:#fde68a; color:#92400e; }
+.merge-preview-check.bad { background:#fef2f2; border-color:#fecaca; color:#991b1b; }
+.merge-preview-check b { display:block; margin-bottom:1px; color:inherit; font-size:11px; }
+.merge-preview-note { border:1px dashed #cbd5e1; background:#fff; border-radius:6px; padding:7px 8px; color:#475569; font-size:11px; line-height:1.45; overflow-wrap:anywhere; }
+.detail-row { display:grid; grid-template-columns:88px 1fr; gap:10px; padding:8px 0; border-top:1px solid #e5e7eb; font-size:12px; }
+.detail-row:first-child { border-top:0; padding-top:0; }
+.detail-label { color:#64748b; font-weight:700; }
+.detail-value { color:#0f172a; line-height:1.55; }
+.lifecycle-record-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+.lifecycle-record-summary .metric { background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:9px 10px; }
+.lifecycle-record-summary b { display:block; color:#0f172a; font-size:18px; }
+.lifecycle-record-summary span { color:#64748b; font-size:11px; }
+.lifecycle-record-tools { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; }
+.lifecycle-record-tools input { flex:1; min-width:180px; padding:7px 9px; border:1px solid #cbd5e1; border-radius:5px; font-size:12px; }
+.lifecycle-record-list { display:flex; flex-direction:column; gap:9px; }
+.lifecycle-record-card { border:1px solid #e2e8f0; background:#fff; border-radius:7px; padding:10px 12px; }
+.lifecycle-record-card.cancelled { border-left:4px solid #64748b; }
+.lifecycle-record-card.merged { border-left:4px solid #0e7490; }
+.lifecycle-record-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:6px; }
+.lifecycle-record-title { font-weight:700; color:#0f172a; line-height:1.45; }
+.lifecycle-record-time { color:#64748b; font-size:11px; white-space:nowrap; }
+.lifecycle-record-meta { display:flex; flex-wrap:wrap; gap:5px; margin:6px 0; }
+.lifecycle-record-chip { border:1px solid #e2e8f0; background:#f8fafc; border-radius:4px; padding:2px 6px; font-size:11px; color:#334155; }
+.lifecycle-record-chip.warn { background:#fffbeb; border-color:#fde68a; color:#92400e; }
+.lifecycle-record-flow { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:8px; align-items:center; margin-top:8px; padding:8px; border-radius:6px; background:#f8fafc; border:1px solid #e2e8f0; font-size:12px; }
+.lifecycle-record-node { min-width:0; }
+.lifecycle-record-node b { display:block; color:#0f172a; overflow-wrap:anywhere; }
+.lifecycle-record-node span { display:block; color:#64748b; font-size:11px; margin-top:2px; }
+.lifecycle-record-arrow { color:#0e7490; font-weight:700; }
+.lifecycle-record-reason { color:#475569; font-size:12px; line-height:1.5; margin-top:6px; overflow-wrap:anywhere; }
+.lifecycle-record-empty { color:#64748b; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:7px; padding:16px; text-align:center; font-size:12px; }
+.overview-wrap { display: flex; gap: 24px; align-items: flex-start; }
+.overview-col { flex: 1; min-width: 400px; display: flex; flex-direction: column; gap: 14px; }
+.overview-col-title { font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 6px; text-align: center; letter-spacing: 1px; }
+.overview-col-title.summer { background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; }
+.overview-col-title.autumn { background: linear-gradient(135deg, #2196f3, #1565c0); color: white; }
+.overview-card { background: white; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); padding: 8px; border-top: 3px solid #ccc; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.overview-card .ov-title { font-size: 12px; font-weight: 700; color: #333; margin-bottom: 8px; padding: 5px 10px; background: #f8f9fa; border-radius: 4px; }
+.overview-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 10px; }
+.overview-table th { padding: 4px 5px; text-align: center; border: 1px solid #ddd; font-size: 10px; white-space: nowrap; }
+.overview-table td { padding: 3px 4px; border: 1px solid #e0e0e0; text-align: center; vertical-align: middle; font-size: 10px; }
+.overview-table .ov-slot-label { font-weight: 600; white-space: nowrap; min-width: 70px; font-size: 9px; background: #fafafa; }
+.overview-table .ov-class-cell { min-width: 80px; padding: 2px 3px; font-size: 10px; white-space: nowrap; }
+.ov-changed { background: #fff9c4 !important; }
+.ov-empty { color: #ccc; }
+.multi-select { position: relative; min-width: 100px; display: inline-block; }
+.multi-select .ms-trigger { padding: 4px 24px 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; cursor: pointer; background: white; min-height: 26px; display: flex; flex-wrap: wrap; gap: 2px; align-items: center; position: relative; }
+.multi-select .ms-trigger::after { content: '▾'; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #999; font-size: 10px; }
+.multi-select .ms-trigger .ms-placeholder { color: #999; }
+.multi-select .ms-trigger .ms-tag { background: #e3f2fd; color: #1565c0; padding: 1px 6px; border-radius: 3px; font-size: 11px; white-space: nowrap; }
+.multi-select .ms-trigger .ms-tag .ms-remove { margin-left: 3px; cursor: pointer; font-weight: bold; }
+.multi-select .ms-dropdown { position: absolute; top: 100%; left: 0; right: 0; min-width: 160px; max-height: 240px; overflow: hidden; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; display: none; margin-top: 2px; }
+.multi-select.open .ms-dropdown { display: block; }
+.multi-select .ms-search-wrap { padding: 7px 8px 6px; border-bottom: 1px solid #eef2f7; background: #fafbfc; }
+.multi-select .ms-search { width: 100%; height: 26px; border: 1px solid #d7dde8; border-radius: 4px; padding: 4px 7px; font-size: 12px; outline: none; }
+.multi-select .ms-search:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.12); background: #fff; }
+.multi-select .ms-options { max-height: 198px; overflow-y: auto; }
+.multi-select .ms-dropdown label { display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+.multi-select .ms-dropdown label:hover { background: #f5f5f5; }
+.multi-select .ms-dropdown input[type="checkbox"] { margin: 0; }
+.multi-select .ms-empty { padding: 10px; color: #999; font-size: 12px; text-align: center; }
+.room-board-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.room-board-section { grid-column: span 12; min-width: 0; background: white; border: 1px solid #e6e8ef; border-radius: 8px; box-shadow: 0 1px 4px rgba(15,23,42,0.06); overflow: hidden; }
+.room-board-section.compact { grid-column: span 6; }
+.room-board-section.medium { grid-column: span 8; }
+.room-board-section.wide { grid-column: span 12; }
+.room-board-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; background: #f8fafc; border-bottom: 1px solid #e6e8ef; }
+.room-board-title { font-size: 14px; font-weight: 700; color: #1a237e; }
+.room-board-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; color: #64748b; }
+.room-board-scroll { max-width: 100%; overflow: auto; }
+.room-board-table { width: 100%; min-width: max-content; border-collapse: collapse; font-size: 11px; }
+.room-board-section.compact .room-board-table { min-width: 420px; }
+.room-board-section.medium .room-board-table { min-width: 520px; }
+.room-board-table th, .room-board-table td { border: 1px solid #e5e7eb; text-align: center; vertical-align: middle; padding: 5px 6px; }
+.room-board-table th { background: #eef2ff; color: #1e3a8a; font-weight: 700; }
+.room-board-table .axis { position: sticky; left: 0; z-index: 3; background: #fff; min-width: 88px; color: #334155; }
+.room-board-table .slot-axis { position: sticky; left: 88px; z-index: 3; background: #f8fafc; min-width: 44px; color: #334155; font-weight: 700; }
+.room-board-table thead .axis, .room-board-table thead .slot-axis { background: #eef2ff; z-index: 4; }
+.room-head { min-width: 86px; max-width: 112px; white-space: normal; line-height: 1.3; }
+.room-name { font-weight: 700; color: #0f172a; }
+.room-badge { display: inline-block; margin-top: 3px; padding: 1px 5px; border-radius: 4px; background: #fff7ed; color: #c2410c; font-size: 10px; font-weight: 700; }
+.room-badge.shared { background: #e0f2fe; color: #0369a1; }
+.room-cell-free { background: repeating-linear-gradient(135deg, #f0fdf4 0, #f0fdf4 8px, #dcfce7 8px, #dcfce7 16px); color: #047857; cursor: pointer; font-weight: 700; min-width: 76px; height: 42px; }
+.room-cell-free:hover { background: #bbf7d0; outline: 2px solid #16a34a; outline-offset: -2px; }
+.room-free-main { font-size: 12px; line-height: 1.15; }
+.room-free-sub { font-size: 10px; color: #059669; font-weight: 600; margin-top: 2px; opacity: 0.8; }
+.room-cell-busy { min-width: 86px; height: 44px; }
+.room-cell-own { background: #fff1f2; color: #9f1239; }
+.room-cell-related { background: #eff6ff; color: #1d4ed8; }
+.room-cell-mixed { background: #fff7ed; color: #c2410c; box-shadow: inset 0 0 0 2px #fb923c; }
+.room-class { font-weight: 700; line-height: 1.25; }
+.room-teacher { color: #64748b; margin-top: 2px; }
+.room-source { display: inline-block; margin-right: 3px; padding: 1px 4px; border-radius: 3px; font-size: 10px; font-weight: 700; background: rgba(255,255,255,0.7); }
+.room-cell-own .room-source { color: #9f1239; border: 1px solid #fecdd3; }
+.room-cell-related .room-source { color: #1d4ed8; border: 1px solid #bfdbfe; }
+.room-cell-mixed .room-source { color: #c2410c; border: 1px solid #fed7aa; }
+.room-legend { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; font-size: 12px; color: #475569; }
+.room-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend-dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+@media (max-width: 1100px) {
+  .room-board-section.compact, .room-board-section.medium { grid-column: span 12; }
+  .header-row { flex-wrap: wrap; height: auto; padding: 8px 16px; gap: 8px; }
+  .header-center { margin-left: 0; }
+  .header-actions { margin-left: 0; flex-wrap: wrap; }
+  .conflict-toolbar { grid-template-columns:1fr; align-items:stretch; }
+  .conflict-filter-fields { grid-template-columns:repeat(4,minmax(0,1fr)) auto; justify-content:stretch; }
+}
+@media (max-width: 720px) {
+  .header-row { flex-direction: column; align-items: flex-start; height: auto; padding: 10px 16px; gap: 8px; }
+  .header-center { width: 100%; }
+  .term-select { width: 100%; }
+  .header-actions { width: 100%; flex-wrap: wrap; }
+  .header-stats { display: none; }
+  .system-status-head { flex-direction:column; align-items:flex-start; }
+  .system-status-time { white-space:normal; }
+  .system-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); padding:10px; }
+  .system-status-grid { grid-template-columns:1fr; padding:0 10px 10px; }
+  .system-detail-list { grid-template-columns:92px minmax(0,1fr); }
+  .batch-toolbar { left: 12px; right: 12px; bottom: 12px; max-width: none; transform: translateY(18px); }
+  .batch-toolbar.is-visible { transform: translateY(0); }
+  .batch-toolbar input { width: min(180px, 100%); }
+  .batch-toolbar .batch-hint { min-width: 0; width: 100%; }
+  .tabs { overflow-x: auto; overflow-y: hidden; padding: 0 16px; gap: 0; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 0 0 auto; white-space: nowrap; padding: 12px 16px; }
+  #tab-schedule .table-wrap { max-height: none !important; overflow: visible !important; background: transparent; box-shadow: none; }
+  .schedule-table { min-width: 0; border-collapse: separate; border-spacing: 0 10px; }
+  .schedule-table thead { display: none; }
+  .schedule-table, .schedule-table tbody, .schedule-table tr, .schedule-table td { display: block; width: 100%; }
+  .schedule-table tr { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(15,23,42,0.08); }
+  .schedule-table tr.conflict { border-color: #fecaca; background: #fff7f7 !important; }
+  .schedule-table tr.inactive-course { border-color: #cbd5e1; background: #f8fafc !important; }
+  .schedule-table td { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 0; font-size: 12px; }
+  .schedule-table td::before { content: attr(data-label); flex: 0 0 72px; color: #64748b; font-size: 11px; font-weight: 700; }
+  .schedule-table td:nth-child(1) { align-items: center; justify-content: flex-start; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid #eef2f7; }
+  .schedule-table td:nth-child(1)::before { content: '选择'; }
+  .schedule-table td:nth-child(2)::before { content: '季度'; }
+  .schedule-table td:nth-child(3)::before { content: '原期数'; }
+  .schedule-table td:nth-child(4)::before { content: '期数'; }
+  .schedule-table td:nth-child(5)::before { content: '校区'; }
+  .schedule-table td:nth-child(6)::before { content: '年级'; }
+  .schedule-table td:nth-child(7)::before { content: '班级'; }
+  .schedule-table td:nth-child(8)::before { content: '科目'; }
+  .schedule-table td:nth-child(9)::before { content: '原教师'; }
+  .schedule-table td:nth-child(10)::before { content: '教师'; }
+  .schedule-table td:nth-child(11)::before { content: '原时段'; }
+  .schedule-table td:nth-child(12)::before { content: '时段'; }
+  .schedule-table td:nth-child(13)::before { content: '原班型'; }
+  .schedule-table td:nth-child(14)::before { content: '班型'; }
+  .schedule-table td:nth-child(15)::before { content: '时间'; }
+  .schedule-table td:nth-child(16)::before { content: '教室'; }
+  .schedule-table td:nth-child(17)::before { content: '类型'; }
+  .schedule-table td:nth-child(18)::before { content: '课次'; }
+  .schedule-table td:nth-child(19)::before { content: '人数'; }
+  .schedule-table td:nth-child(20)::before { content: '操作'; }
+  .schedule-table td:nth-child(7) { font-weight: 700; color: #0f172a; }
+  .schedule-table td:nth-child(20) { display: block; }
+  .schedule-table td:nth-child(20)::before { display: block; margin-bottom: 6px; }
+  .schedule-table .editable, .schedule-table .readonly-text, .schedule-table select.editable { max-width: 100%; min-width: 96px; }
+  .filters { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .filter-group { min-width:0; }
+  .filter-group select, .filter-group input { width:100%; min-width:0; }
+  .conflict-page-head { align-items:flex-start; flex-direction:column; gap:6px; margin-bottom:8px; }
+  .conflict-page-head h3 { font-size:15px; }
+  .conflict-filter-summary { justify-content:flex-start; }
+  .conflict-card { padding:9px 10px; }
+  .conflict-toolbar { display:grid; grid-template-columns:1fr; padding:8px; gap:7px; margin-bottom:8px; }
+  .conflict-filter-left { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:7px; }
+  .conflict-filter-label { padding:4px 7px; font-size:11px; }
+  .conflict-chip { padding:4px 8px; font-size:11px; }
+  .conflict-filter-fields { display:grid; grid-template-columns:1fr 1fr; gap:7px; justify-content:stretch; }
+  .conflict-toolbar .filter-group { width:100%; }
+  .conflict-toolbar .filter-group label { width:42px; flex:0 0 42px; font-size:11px; }
+  .conflict-filter-reset { height:28px; grid-column:span 2; }
+  .conflict-quickbar { padding:0; margin:0; }
+  .conflict-summary { grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+  .conflict-summary .metric { padding:8px 7px; }
+  .conflict-summary .metric b { font-size:19px; }
+  .conflict-summary .metric span { font-size:11px; }
+  .conflict-card { border-left:0; border-top:3px solid #f44336; margin-bottom:8px; }
+  .conflict-card-head { flex-direction:column; gap:6px; margin-bottom:6px; }
+  .conflict-actions { width:100%; justify-content:flex-start; }
+  .conflict-actions .btn { width:100%; padding:5px 8px !important; }
+  .conflict-title-line { gap:4px; }
+  .conflict-meta-line { font-size:10px; margin-top:2px; }
+  .conflict-status-row { margin:5px 0; gap:4px; }
+  .conflict-status-row .btn { flex:1; min-width:68px; padding:3px 5px !important; font-size:10px !important; }
+  .conflict-class-list { gap:4px; margin:5px 0 1px; }
+  .conflict-class-item { font-size:10px; padding:5px 6px; line-height:1.35; }
+  .conflict-suggestions { padding:7px; margin-top:7px; }
+  .suggestion-head { margin-bottom:6px; }
+  .suggestion-row { grid-template-columns:1fr; gap:6px; background:#fff; border:1px solid #e5e7eb; border-radius:7px; padding:7px; margin-top:6px; }
+  .suggestion-row:first-of-type { padding-top:7px; }
+  .suggestion-row.review { margin-top:6px; padding:7px; border-color:#fed7aa; }
+  .suggestion-meta { flex-direction:row !important; align-items:center !important; }
+  .suggestion-risk, .suggestion-kind { flex:1; padding:4px 6px; }
+  .suggestion-mobile-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; margin:5px 0; }
+  .suggestion-score { padding:6px; gap:4px; margin:5px 0; }
+  .suggestion-score-badge { width:100%; text-align:center; }
+  .suggestion-metrics { gap:4px; margin:5px 0; }
+  .suggestion-metric { padding:2px 5px; font-size:10px; }
+  .suggestion-reasons { padding-left:15px; font-size:11px; }
+  .suggestion-plan { font-size:11px; padding:7px 8px; }
+  .suggestion-route { font-size:11px; }
+  .suggestion-route-chip { padding:3px 5px; }
+  .suggestion-actions .btn { flex:1; min-width:112px; padding:6px 8px !important; }
+  .suggestion-action-note { width:100%; text-align:center; }
+  .suggestion-body { grid-template-columns:1fr; }
+  .suite-preview-overview { grid-template-columns:repeat(3,minmax(82px,1fr)); overflow-x:auto; }
+  .suite-preview { overflow-x:auto; }
+  .suite-preview-head { position:sticky; left:0; z-index:1; }
+  .suite-subject-strip, .suite-impact-flow { position:sticky; left:0; min-width:min(560px, calc(100vw - 58px)); }
+  .suite-preview-grid { display:flex; min-width:0; width:max-content; }
+  .suite-slot { flex:0 0 118px; min-height:98px; }
+  .suite-preview-note { position:sticky; left:0; min-width:min(560px, calc(100vw - 58px)); }
+  .presence-popover { top:128px; right:16px; }
+  .cancel-review-kpis, .cancel-review-checks { grid-template-columns:1fr; }
+  .cancel-review-suite-row { grid-template-columns:1fr; gap:3px; }
+  .cancel-review-suite-row em { text-align:left; }
+  .lifecycle-record-summary { grid-template-columns:1fr 1fr; }
+  .lifecycle-record-flow { grid-template-columns:1fr; }
+  .lifecycle-record-arrow { display:none; }
+  .merge-preview-flow { grid-template-columns:1fr; }
+  .merge-preview-arrow { display:none; }
+  .merge-preview-kpis { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .merge-preview-checks { grid-template-columns:1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-row">
+    <div class="brand-section">
+      <h1 id="pageTitle">排课协作看版</h1>
+      <div class="header-stats">
+        <span id="totalClasses">0</span> 班
+        <span class="divider">·</span>
+        <span id="totalTeachers">0</span> 师
+        <span class="divider">·</span>
+      <span id="totalCampuses">0</span> 校区
+    </div>
+    <span class="sync-status" id="syncStatus">已连接</span>
+      <button type="button" class="presence-chip" id="presenceIndicator" title="" data-app-action="toggle-presence" aria-expanded="false" aria-controls="presencePopover"></button>
+      <div class="presence-popover" id="presencePopover"></div>
+    </div>
+    <div class="header-center">
+      <select id="termSelect" class="term-select"></select>
+      <button class="hbtn" data-app-action="open-new-term">+ 批次</button>
+    </div>
+    <div class="header-actions">
+      <button class="hbtn" data-app-action="go-home">首页</button>
+      <button class="hbtn" data-app-action="load-data">刷新</button>
+      <div class="header-sep"></div>
+      <button class="hbtn" data-app-action="export-excel">导出</button>
+      <button class="hbtn" data-app-action="export-excel-changes">导出变更</button>
+      <div class="header-sep"></div>
+      <div class="more-menu">
+        <button class="hbtn" data-app-action="toggle-more-menu">更多 ▾</button>
+        <div class="more-menu-dropdown" id="headerMoreMenu">
+          <button class="menu-item staff-only" data-app-action="set-term-default">设为主批次</button>
+          <button class="menu-item staff-only" data-app-action="open-edit-term">修改批次</button>
+          <button class="menu-item staff-only" data-app-action="archive-term">归档批次</button>
+          <button class="menu-item staff-only" data-app-action="delete-term" style="color:#c62828;">删除批次</button>
+          <div class="menu-divider staff-only"></div>
+          <button class="menu-item staff-only" data-app-action="download-backup">下载备份</button>
+          <button class="menu-item staff-only" data-app-action="open-import">导入数据</button>
+          <button class="menu-item staff-only" data-app-action="show-system-status">系统状态</button>
+        </div>
+      </div>
+      <div class="header-sep"></div>
+      <span id="userInfo" class="user-chip"></span>
+      <button class="hbtn hbtn-logout" data-app-action="logout">登出</button>
+    </div>
+  </div>
+</div>
+<div id="workflowBar" style="display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;padding:6px 24px;background:#fff8e1;border-bottom:1px solid #ffe0b2;font-size:12px;">
+  <span id="wfStatus" style="font-weight:700;color:#e65100;">流程状态</span>
+  <span id="wfInfo" style="color:#666;"></span>
+  <span id="wfEditHint" class="edit-lock-note"></span>
+  <span id="permissionHint" style="color:#455a64;background:#eef2ff;border:1px solid #c7d2fe;border-radius:4px;padding:4px 8px;"></span>
+  <button id="wfAction" class="btn" style="background:#ff9800;color:white;padding:4px 10px;" data-app-action="advance-workflow">流转</button>
+  <span id="wfStaffControls" style="display:none;align-items:center;gap:6px;">
+    <select id="wfStaffTarget" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;"></select>
+    <button id="wfStaffAction" class="btn" style="background:#455a64;color:white;padding:4px 10px;" data-app-action="set-workflow-status">设置流程</button>
+  </span>
+</div>
+<div id="scheduleMoodBoard"></div>
+<div class="tabs" role="tablist" aria-label="排课功能导航">
+  <button type="button" class="tab active" id="tabbtn-schedule" data-tab="schedule" role="tab" aria-selected="true" aria-controls="tab-schedule" tabindex="0">课程排表</button>
+  <button type="button" class="tab" id="tabbtn-overview" data-tab="overview" role="tab" aria-selected="false" aria-controls="tab-overview" tabindex="-1">校区课表总览</button>
+  <button type="button" class="tab" id="tabbtn-capacity" data-tab="capacity" role="tab" aria-selected="false" aria-controls="tab-capacity" tabindex="-1">教师产能表</button>
+  <button type="button" class="tab" id="tabbtn-classrooms" data-tab="classrooms" role="tab" aria-selected="false" aria-controls="tab-classrooms" tabindex="-1">教室空挡表</button>
+  <button type="button" class="tab" id="tabbtn-heatmap" data-tab="heatmap" role="tab" aria-selected="false" aria-controls="tab-heatmap" tabindex="-1">产能热力图</button>
+  <button type="button" class="tab" id="tabbtn-conflicts" data-tab="conflicts" role="tab" aria-selected="false" aria-controls="tab-conflicts" tabindex="-1">冲突汇总</button>
+  <button type="button" class="tab" id="tabbtn-changelog" data-tab="changelog" role="tab" aria-selected="false" aria-controls="tab-changelog" tabindex="-1">修改记录</button>
+</div>
+
+<div class="container tab-content" id="tab-schedule" role="tabpanel" aria-labelledby="tabbtn-schedule">
+  <div class="summary-cards">
+    <div class="card clickable" data-quick-filter="active"><div class="num" id="cardTotal">0</div><div class="label">正常班级</div></div>
+    <div class="card"><div class="num" id="cardAssigned">0</div><div class="label">已排教师</div></div>
+    <div class="card"><div class="num" id="cardUnassigned">0</div><div class="label">待排教师</div></div>
+    <div class="card danger clickable" data-quick-filter="conflict"><div class="num" id="cardConflicts">0</div><div class="label">冲突数</div></div>
+    <div class="card warn clickable" data-quick-filter="changed"><div class="num" id="cardChanged">0</div><div class="label">已修改项</div></div>
+    <div class="card muted clickable" data-quick-filter="cancelled"><div class="num" id="cardCancelled">0</div><div class="label">已取消班 <button class="link-btn" data-lifecycle-records="cancelled">记录</button></div></div>
+    <div class="card lifecycle clickable" data-quick-filter="merged"><div class="num" id="cardMerged">0</div><div class="label">已合并班 <button class="link-btn" data-lifecycle-records="merged">记录</button></div></div>
+  </div>
+  <div class="filters">
+    <div class="filter-group"><label>季度</label><div class="multi-select" id="filterSeason" data-placeholder="全部"></div></div>
+    <div class="filter-group"><label>期数</label><div class="multi-select" id="filterPeriod" data-placeholder="全部"></div></div>
+    <div class="filter-group"><label>校区</label><div class="multi-select" id="filterCampus" data-placeholder="全部" data-searchable="1" data-search-placeholder="输入校区或首字母"></div></div>
+    <div class="filter-group"><label>科目</label><div class="multi-select" id="filterSubject" data-placeholder="全部"></div></div>
+    <div class="filter-group"><label>教师</label><div class="multi-select" id="filterTeacher" data-placeholder="全部" data-searchable="1" data-search-placeholder="输入教师或首字母"></div></div>
+    <div class="filter-group"><label>时段</label><div class="multi-select" id="filterSlot" data-placeholder="全部"></div></div>
+    <div class="filter-group"><label>类型</label><div class="multi-select" id="filterDesc" data-placeholder="全部"></div></div>
+    <div class="filter-group"><label>状态</label><select id="filterLifecycle" style="width:90px;"><option value="">全部</option><option value="active">正常</option><option value="cancelled">已取消</option><option value="merged">已合并</option></select></div>
+    <div class="filter-group"><label>搜索</label><input type="text" id="filterSearch" placeholder="班级名/编码..." style="width:110px;"></div>
+    <div class="filter-group"><input type="checkbox" id="filterConflictOnly"> <label for="filterConflictOnly" style="color:#f44336;">仅冲突</label></div>
+    <div class="filter-group"><input type="checkbox" id="filterChangedOnly"> <label for="filterChangedOnly" style="color:#ff9800;">仅修改</label></div>
+  </div>
+  <div id="batchToolbar" class="batch-toolbar" aria-live="polite">
+    <span id="batchSelectedCount" class="batch-count">已选 0 门课</span>
+    <button class="btn btn-refresh" data-batch-control="1" style="padding:4px 10px;" data-app-action="select-current-page">选择当前页</button>
+    <button class="btn" data-batch-control="1" style="background:#f5f5f5;color:#555;padding:4px 10px;" data-app-action="clear-batch-selection">清空选择</button>
+    <span class="batch-divider"></span>
+    <label>批量修改</label>
+    <select id="batchField" data-app-change="batch-field">
+      <option value="teacher">授课教师</option>
+      <option value="room">教室</option>
+      <option value="period">期数</option>
+      <option value="slot">时段</option>
+      <option value="classType">班型</option>
+    </select>
+    <span id="batchValueWrap"></span>
+    <button class="btn" data-batch-control="1" data-batch-apply="1" style="background:#1a237e;color:white;padding:5px 12px;" data-app-action="apply-batch-update">应用到所选</button>
+    <span id="batchHint" class="batch-hint"></span>
+  </div>
+  <div class="table-wrap" style="max-height: 60vh; overflow-y: auto;">
+    <table class="schedule-table"><thead><tr>
+      <th style="width:46px;"><input type="checkbox" id="batchSelectPage" title="选择当前页" data-app-change="batch-select-page"></th><th>季度</th><th>原期数</th><th>期数 ✏️</th><th>校区</th><th>年级</th><th>班级名称</th><th>科目</th>
+      <th>原教师</th><th>授课教师 ✏️</th><th>原时段</th><th>时段 ✏️</th><th>原班型</th><th>班型 ✏️</th><th>上课时间</th><th>教室</th><th>类型</th><th>课次</th><th>人数</th><th>操作</th>
+    </tr></thead><tbody id="scheduleBody"></tbody></table>
+  </div>
+  <div id="schedulePager" style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px;font-size:12px;"></div>
+</div>
+
+<div class="container tab-content hidden" id="tab-overview" role="tabpanel" aria-labelledby="tabbtn-overview">
+  <div class="filters">
+    <div class="filter-group"><label>校区</label><div class="multi-select" id="ovCampus" data-placeholder="全部"></div></div>
+    <div class="filter-group"><label>年级</label><div class="multi-select" id="ovGrade" data-placeholder="全部"></div></div>
+  </div>
+  <div id="overviewContent" style="overflow-x:auto;-webkit-overflow-scrolling:touch;"></div>
+</div>
+
+<div class="container tab-content hidden" id="tab-capacity" role="tabpanel" aria-labelledby="tabbtn-capacity">
+  <div class="filters">
+    <div class="filter-group"><label>科目</label><select id="capSubject"><option value="">全部</option></select></div>
+    <div class="filter-group"><label>校区</label><select id="capCampus"><option value="">全部</option></select></div>
+    <div class="filter-group"><label>教师</label><input type="text" id="capTeacherSearch" placeholder="搜索..." style="width:100px;"></div>
+    <div class="filter-group"><button class="btn" id="newCourseBtn" data-app-action="open-new-course" style="background:#1a237e;color:white;padding:4px 12px;font-size:12px;">+ 新增排课</button></div>
+    <div class="filter-group"><button class="btn" id="capUndoBtn" data-app-action="cap-undo" disabled style="background:#ff9800;color:white;padding:4px 12px;font-size:12px;">↩ 撤销拖拽</button></div>
+    <div class="filter-group" style="margin-left:auto;">
+      <label>缩放</label>
+      <button class="btn" style="padding:3px 8px;font-size:14px;" data-zoom-capacity="-10">−</button>
+      <span id="zoomLevel" style="font-size:12px;min-width:36px;text-align:center;display:inline-block;">100%</span>
+      <button class="btn" style="padding:3px 8px;font-size:14px;" data-zoom-capacity="10">+</button>
+      <button class="btn btn-refresh" style="margin-left:4px;padding:3px 8px;" data-zoom-capacity="0">重置</button>
+    </div>
+  </div>
+  <div class="table-wrap" id="capacityWrap" style="max-height: 68vh; overflow: auto; border-radius: 8px; border: 1px solid #e0e0e0;">
+    <table class="capacity-table"><thead id="capacityHead"></thead><tbody id="capacityBody"></tbody></table>
+  </div>
+  <div id="campusLegend" style="margin-top:12px;padding:10px 14px;background:#fafafa;border-radius:6px;font-size:12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:1px solid #eee;">
+    <span style="font-weight:600;color:#333;margin-right:4px;">图例:</span>
+    <span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:3px;height:14px;background:#f44336;border-radius:1px;margin-right:4px;"></span>冲突</span>
+    <span style="display:inline-flex;align-items:center;margin-left:8px;color:#ccc;">· 空闲</span>
+    <span style="margin-left:16px;font-weight:600;color:#333;">校区色条:</span>
+    <span id="campusColorLegend" style="display:flex;flex-wrap:wrap;gap:6px;"></span>
+  </div>
+</div>
+
+<div class="container tab-content hidden" id="tab-classrooms" role="tabpanel" aria-labelledby="tabbtn-classrooms">
+  <div class="filters">
+    <div class="filter-group"><label>校区</label><select id="roomCampus"><option value="">全部</option></select></div>
+    <div class="filter-group"><label>季度</label><select id="roomSeason"><option value="">全部</option></select></div>
+    <div class="filter-group"><label>期数</label><select id="roomPeriod"><option value="">全部</option></select></div>
+    <div class="filter-group"><label>教室</label><input type="text" id="roomSearch" placeholder="搜索教室..." style="width:120px;"></div>
+  </div>
+  <div class="room-legend">
+    <span><i class="legend-dot" style="background:#ecfdf5;border:1px solid #86efac;"></i>空闲，可点击插课</span>
+    <span><i class="legend-dot" style="background:#fff1f2;border:1px solid #fda4af;"></i>本部门已占用</span>
+    <span><i class="legend-dot" style="background:#eff6ff;border:1px solid #93c5fd;"></i>其他部门已占用</span>
+    <span><i class="legend-dot" style="background:#fff7ed;border:2px solid #fb923c;"></i>多部门冲突</span>
+    <span><i class="legend-dot" style="background:#fff7ed;border:1px solid #fdba74;"></i>借用教室</span>
+    <span><i class="legend-dot" style="background:#e0f2fe;border:1px solid #7dd3fc;"></i>共用教室</span>
+  </div>
+  <div id="classroomBoardContent" style="overflow:auto;"></div>
+</div>
+
+<div class="container tab-content hidden" id="tab-heatmap" role="tabpanel" aria-labelledby="tabbtn-heatmap">
+  <div class="filters" style="margin-bottom:12px;">
+    <div class="filter-group"><label>校区</label><select id="hmCampus"><option value="">全部</option></select></div>
+    <div class="filter-group"><label>科目</label><select id="hmSubject"><option value="">全部</option></select></div>
+    <div class="filter-group"><label>搜索教师</label><input type="text" id="hmSearch" placeholder="姓名..." style="width:100px;"></div>
+    <div class="filter-group"><input type="checkbox" id="hmHalfRun"> <label for="hmHalfRun" style="color:#ff6f00;">仅半段跑</label></div>
+  </div>
+  <div id="heatmapContent" style="overflow-x:auto;font-size:12px;"></div>
+</div>
+
+<div class="container tab-content hidden" id="tab-conflicts" role="tabpanel" aria-labelledby="tabbtn-conflicts">
+  <div class="conflict-page-head">
+    <h3>待处理冲突</h3>
+    <div id="conflictFilterSummary" class="conflict-filter-summary" aria-live="polite"></div>
+  </div>
+  <div class="conflict-toolbar">
+    <div class="conflict-filter-left">
+      <span class="conflict-filter-label">筛选</span>
+      <div class="conflict-quickbar" id="conflictQuickbar" aria-label="冲突快速筛选">
+        <button type="button" class="conflict-chip active" data-conflict-quick-type="">全部</button>
+        <button type="button" class="conflict-chip" data-conflict-quick-type="teacher">教师冲突</button>
+        <button type="button" class="conflict-chip" data-conflict-quick-type="room">教室冲突</button>
+        <button type="button" class="conflict-chip" data-conflict-quick-type="cross">跨部门</button>
+      </div>
+    </div>
+    <select id="conflictType" class="conflict-hidden-type" aria-hidden="true" tabindex="-1"><option value="">全部</option><option value="teacher">教师冲突</option><option value="room">教室冲突</option><option value="cross">跨部门教室冲突</option></select>
+    <div class="conflict-filter-fields">
+      <div class="filter-group"><label>校区</label><select id="conflictCampus"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>科目</label><select id="conflictSubject"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>年级</label><select id="conflictGrade"><option value="">全部</option></select></div>
+      <div class="filter-group"><label>搜索</label><input id="conflictSearch" type="text" placeholder="教师/教室/班级..." style="width:160px;"></div>
+      <button type="button" class="conflict-filter-reset" data-app-action="reset-conflict-filters">清空</button>
+    </div>
+  </div>
+  <div id="conflictSummary" class="conflict-summary"></div>
+  <div id="conflictList"></div>
+</div>
+
+<div class="container tab-content hidden" id="tab-changelog" role="tabpanel" aria-labelledby="tabbtn-changelog">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <h3 style="color:#1a237e;">修改记录</h3>
+    <button class="btn btn-refresh" data-app-action="render-changelog">刷新记录</button>
+  </div>
+  <div id="historyPanel" style="font-size:12px;margin-bottom:16px;"></div>
+  <div id="systemStatusPanel" class="hidden" style="font-size:12px;margin-bottom:16px;"></div>
+  <div id="changelogList" style="font-size:12px;"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 导入弹窗 -->
+<div class="hidden" id="importModal" data-modal-backdrop="importModal" role="dialog" aria-modal="true" aria-labelledby="importModalTitle" tabindex="-1" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:12px;padding:28px;width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 id="importModalTitle" style="margin-bottom:16px;color:#1a237e;">导入Excel数据</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:16px;">上传新的排课Excel文件，格式需与原始导出表一致（16列：季度、校区名称、班级编码...）。导入后当前数据将作为新的基准版本。</p>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">导入模式</label>
+      <select id="importMode" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;font-size:12px;">
+        <option value="replace">覆盖导入（标准模式）</option>
+        <option value="spring_to_summer_autumn">春季 → 暑秋（去除毕业年级）</option>
+        <option value="autumn_to_winter_spring">秋季 → 寒春（保留全部年级）</option>
+      </select>
+    </div>
+    <div style="border:2px dashed #ccc;border-radius:8px;padding:24px;text-align:center;margin-bottom:16px;" id="dropZone">
+      <div style="font-size:32px;color:#ccc;margin-bottom:8px;">📁</div>
+      <div style="color:#666;font-size:12px;">拖拽文件到此处，或</div>
+      <input type="file" id="importFile" accept=".xlsx" style="display:none;">
+      <button class="btn" style="background:#1a237e;color:white;margin-top:8px;" data-app-action="choose-import-file">选择文件</button>
+      <div id="fileName" style="margin-top:8px;font-size:11px;color:#333;"></div>
+    </div>
+    <div id="importPreview" class="hidden" style="margin-bottom:16px;background:#f8f9fa;border:1px solid #e0e0e0;border-radius:8px;padding:12px;font-size:12px;color:#333;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" style="background:#eee;" data-app-action="close-import">取消</button>
+      <button class="btn" style="background:#ff9800;color:white;" id="importBtn" data-app-action="do-import">预检文件</button>
+    </div>
+  </div>
+</div>
+
+<!-- 插空排课弹窗 -->
+<div class="hidden" id="newCourseModal" data-modal-backdrop="newCourseModal" role="dialog" aria-modal="true" aria-labelledby="newCourseModalTitle" tabindex="-1" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:12px;padding:24px;width:560px;max-height:90vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 id="newCourseModalTitle" style="margin-bottom:16px;color:#1a237e;">插空排课</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div><label style="font-size:12px;color:#666;">季度</label><select id="nc_season" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;"><option value="暑假">暑假</option><option value="秋季">秋季</option></select></div>
+      <div><label style="font-size:12px;color:#666;">校区</label><select id="nc_campus" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;"></select></div>
+      <div><label style="font-size:12px;color:#666;">科目</label><select id="nc_subject" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;"><option value="博文">博文</option><option value="双语">双语</option><option value="益智">益智</option><option value="科学">科学</option><option value="实践">实践</option><option value="数学">数学</option><option value="英语">英语</option></select></div>
+      <div><label style="font-size:12px;color:#666;">年级</label><select id="nc_grade" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;"><option value="初一">初一</option><option value="初二">初二</option><option value="初三">初三</option><option value="高一">高一</option><option value="高二">高二</option></select></div>
+      <div><label style="font-size:12px;color:#666;">难度等级</label><select id="nc_level" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="I">I</option></select></div>
+      <div><label style="font-size:12px;color:#666;">期数</label><select id="nc_period" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;"></select></div>
+      <div><label style="font-size:12px;color:#666;">教师</label><select id="nc_teacher" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;"></select><div id="nc_teacher_suggest" style="margin-top:5px;font-size:11px;color:#1565c0;"></div></div>
+      <div><label style="font-size:12px;color:#666;">教室</label><select id="nc_room" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;"></select><div id="nc_room_suggest" style="margin-top:5px;font-size:11px;color:#1565c0;"></div></div>
+      <div><label style="font-size:12px;color:#666;">时段</label><select id="nc_slot" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option></select></div>
+      <div><label style="font-size:12px;color:#666;">上课日</label><select id="nc_day" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;"><option value="周六">周六</option><option value="周日">周日</option><option value="周五">周五</option><option value="每天">每天</option></select></div>
+      <div><label style="font-size:12px;color:#666;">班型</label><select id="nc_class_kind" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;"><option value="素养">素养</option><option value="小组">小组</option></select></div>
+    </div>
+    <div style="margin-top:12px;"><label style="font-size:12px;color:#666;">排课原因（可选）</label><input id="nc_reason" placeholder="如 教师请假、教室占用、临时加班" style="width:100%;padding:7px;border:1px solid #ddd;border-radius:5px;"></div>
+    <div id="nc_code_preview" style="margin-top:14px;padding:10px;background:#e3f2fd;color:#1565c0;border-radius:6px;font-size:12px;"></div>
+    <div id="nc_conflict_info" style="margin-top:8px;padding:10px;background:#f5f5f5;border-radius:6px;font-size:12px;color:#555;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn" style="background:#eee;" data-app-action="close-new-course">取消</button>
+      <button class="btn" style="background:#1a237e;color:white;" id="nc_submit" data-app-action="submit-new-course">确认排课</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通用明细弹窗 -->
+<div class="hidden" id="detailModal" data-modal-backdrop="detailModal" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle" tabindex="-1" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:1001;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:10px;padding:20px;width:520px;max-width:92%;max-height:86vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 id="detailModalTitle" style="margin:0 0 14px;color:#1a237e;">明细</h3>
+    <div id="detailModalBody"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+      <button class="btn" style="background:#1a237e;color:white;" data-app-action="close-detail">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 操作原因弹窗 -->
+<div class="hidden" id="reasonModal" data-modal-backdrop="reasonModal" role="dialog" aria-modal="true" aria-labelledby="reasonModalTitle" aria-describedby="reasonModalHint" tabindex="-1" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:1002;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:10px;padding:20px;width:420px;max-width:92%;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 id="reasonModalTitle" style="margin:0 0 8px;color:#1a237e;">填写操作原因</h3>
+    <p id="reasonModalHint" style="margin:0 0 12px;color:#64748b;font-size:12px;line-height:1.5;">高风险操作建议记录原因，便于后续追溯。</p>
+    <textarea id="reasonModalInput" rows="4" placeholder="例如：教师请假、教室占用、校区调整" style="width:100%;padding:9px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;resize:vertical;"></textarea>
+    <label style="display:flex;align-items:center;gap:6px;margin-top:8px;color:#475569;font-size:12px;">
+      <input id="reasonModalRemember" type="checkbox"> 本轮操作复用这个原因
+    </label>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+      <button class="btn" style="background:#eee;" data-app-action="cancel-reason">取消操作</button>
+      <button class="btn" style="background:#1a237e;color:white;" data-app-action="submit-reason">继续</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通用复核确认弹窗 -->
+<div class="hidden" id="confirmModal" data-modal-backdrop="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle" tabindex="-1" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:1002;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:10px;padding:20px;width:460px;max-width:92%;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 id="confirmModalTitle" style="margin:0 0 8px;color:#1a237e;">确认操作</h3>
+    <div id="confirmModalBody" style="color:#475569;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:14px;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn" style="background:#eee;" data-app-action="cancel-confirm">取消</button>
+      <button class="btn" id="confirmModalSubmit" style="background:#1a237e;color:white;" data-app-action="submit-confirm">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量修改复核弹窗 -->
+<div class="hidden" id="batchReviewModal" data-modal-backdrop="batchReviewModal" role="dialog" aria-modal="true" aria-labelledby="batchReviewTitle" tabindex="-1" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:1002;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:10px;padding:20px;width:560px;max-width:94%;max-height:86vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 id="batchReviewTitle" style="margin:0 0 8px;color:#1a237e;">批量修改复核</h3>
+    <p style="margin:0 0 12px;color:#64748b;font-size:12px;line-height:1.5;">系统会先保存可通过冲突检测的课程，失败项会保留选择并展示复核明细。</p>
+    <div id="batchReviewBody"></div>
+    <label for="batchReviewReason" style="display:block;font-size:12px;color:#666;margin:0 0 4px;">操作原因</label>
+    <input id="batchReviewReason" type="text" placeholder="例如：统一调整教师、校区临时排课安排" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
+    <div id="batchReviewReasonHint" style="min-height:16px;margin-top:4px;color:#b91c1c;font-size:11px;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+      <button class="btn" style="background:#eee;" data-app-action="cancel-batch-review">取消</button>
+      <button class="btn" style="background:#1a237e;color:white;" data-app-action="confirm-batch-review">确认应用</button>
+    </div>
+  </div>
+</div>
+
+<!-- 取消/合并记录弹窗 -->
+<div class="hidden" id="lifecycleRecordsModal" data-modal-backdrop="lifecycleRecordsModal" role="dialog" aria-modal="true" aria-labelledby="lifecycleRecordsTitle" tabindex="-1" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:1001;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:10px;padding:20px;width:760px;max-width:94%;max-height:88vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 id="lifecycleRecordsTitle" style="margin:0 0 14px;color:#1a237e;">记录</h3>
+    <div id="lifecycleRecordsBody"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+      <button class="btn" style="background:#1a237e;color:white;" data-app-action="close-lifecycle-records">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 取消班级复核弹窗 -->
+<div class="hidden" id="cancelCourseModal" data-modal-backdrop="cancelCourseModal" role="dialog" aria-modal="true" aria-labelledby="cancelCourseModalTitle" tabindex="-1" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:1002;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:12px;padding:22px;width:640px;max-width:94%;max-height:88vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 id="cancelCourseModalTitle" style="margin:0 0 8px;color:#92400e;">取消班级复核</h3>
+    <p style="margin:0 0 12px;color:#64748b;font-size:12px;line-height:1.5;">取消班是最终兜底方案，会影响学生留存和部门结转。请先确认低人数、搭班影响和主管复核结论。</p>
+    <div id="cancelCourseReviewBody"></div>
+    <label for="cancelCourseReason" style="display:block;font-size:12px;color:#666;margin:12px 0 4px;">取消原因</label>
+    <input id="cancelCourseReason" type="text" placeholder="例如：低人数兜底、招生集中后取消、主管复核确认" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;">
+    <div id="cancelCourseReasonHint" style="font-size:11px;color:#b45309;margin-top:5px;min-height:16px;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+      <button class="btn" style="background:#eee;" data-app-action="close-cancel-course">取消</button>
+      <button class="btn" style="background:#92400e;color:white;" data-app-action="submit-cancel-course">确认取消班级</button>
+    </div>
+  </div>
+</div>
+
+<!-- 合并班级弹窗 -->
+<div class="hidden" id="mergeCourseModal" data-modal-backdrop="mergeCourseModal" role="dialog" aria-modal="true" aria-labelledby="mergeCourseModalTitle" tabindex="-1" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:12px;padding:22px;width:680px;max-width:92%;max-height:90vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 id="mergeCourseModalTitle" style="margin:0 0 14px;color:#1a237e;">合并班级</h3>
+    <div id="mergeSourceInfo" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#334155;"></div>
+    <div id="mergeRecommendations" class="merge-recommendations"></div>
+    <div style="display:grid;grid-template-columns:120px 1fr;gap:10px 12px;align-items:center;font-size:12px;">
+      <label>目标班级</label>
+      <select id="mergeTargetSelect" style="padding:7px 9px;border:1px solid #ddd;border-radius:4px;font-size:12px;"></select>
+      <label>合并原因</label>
+      <input id="mergeReasonInput" type="text" placeholder="低人数合并、招生调整等" style="padding:7px 9px;border:1px solid #ddd;border-radius:4px;font-size:12px;">
+    </div>
+    <div id="mergeReasonHint" style="font-size:11px;color:#b45309;margin-top:6px;min-height:16px;"></div>
+    <div id="mergePreview" style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:10px 12px;font-size:12px;color:#7c2d12;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+      <button class="btn" style="background:#eee;" data-app-action="close-merge-course">取消</button>
+      <button class="btn" style="background:#0e7490;color:white;" data-app-action="submit-merge-course">确认合并</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新建批次弹窗 -->
+<div class="hidden" id="newTermModal" data-modal-backdrop="newTermModal" role="dialog" aria-modal="true" aria-labelledby="newTermModalTitle" tabindex="-1" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:12px;padding:28px;width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 id="newTermModalTitle" style="margin-bottom:16px;color:#1a237e;">新建排课批次</h3>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">批次名称</label>
+      <input type="text" id="newTermName" placeholder="如 FY27寒春" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">描述（可选）</label>
+      <input type="text" id="newTermDesc" placeholder="" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;">
+    </div>
+    <p id="newTermHint" style="font-size:12px;color:#999;margin-bottom:16px;">提示：系统会自动生成内部编号。批次创建后为空白，需进入新批次后导入 Excel 数据。</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" style="background:#eee;" data-app-action="close-new-term">取消</button>
+      <button class="btn btn-export" data-app-action="create-term">创建并切换</button>
+    </div>
+  </div>
+</div>
+
+<!-- 修改批次弹窗 -->
+<div class="hidden" id="editTermModal" data-modal-backdrop="editTermModal" role="dialog" aria-modal="true" aria-labelledby="editTermModalTitle" tabindex="-1" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:12px;padding:28px;width:400px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 id="editTermModalTitle" style="margin-bottom:16px;color:#1a237e;">修改批次信息</h3>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">批次名称</label>
+      <input type="text" id="editTermName" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px;">描述（可选）</label>
+      <input type="text" id="editTermDesc" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;">
+    </div>
+    <p style="font-size:12px;color:#999;margin-bottom:16px;">这里只修改页面显示名称，不影响当前批次里的课程或课次数据。</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" style="background:#eee;" data-app-action="close-edit-term">取消</button>
+      <button class="btn btn-export" data-app-action="save-term-info">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 删除批次确认弹窗 -->
+<div class="hidden" id="deleteTermModal" data-modal-backdrop="deleteTermModal" role="dialog" aria-modal="true" aria-labelledby="deleteTermModalTitle" tabindex="-1" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:12px;padding:24px;width:430px;max-width:92%;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+    <h3 id="deleteTermModalTitle" style="margin:0 0 10px;color:#b91c1c;">删除批次确认</h3>
+    <p style="font-size:12px;color:#4b5563;line-height:1.55;margin:0 0 12px;">删除批次不会清空数据，会把数据归档到服务器备份目录。请确认当前没有人在使用这个批次。</p>
+    <div id="deleteTermNameHint" style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:9px 10px;font-size:12px;margin-bottom:12px;"></div>
+    <label for="deleteTermNameInput" style="display:block;font-size:12px;color:#666;margin-bottom:4px;">输入完整批次名称</label>
+    <input type="text" id="deleteTermNameInput" autocomplete="off" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn" style="background:#eee;" data-app-action="close-delete-term">取消</button>
+      <button class="btn" id="deleteTermSubmit" style="background:#b91c1c;color:white;" data-app-action="confirm-delete-term">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<script src="app_utils.js"></script>
+<script src="app.js"></script>
+<script>
+function toggleMoreMenu(e){e.stopPropagation();document.getElementById('headerMoreMenu').classList.toggle('show')}
+function closeMoreMenu(){document.getElementById('headerMoreMenu').classList.remove('show')}
+function hideModal(id){
+  if (typeof hideAppModal === 'function') hideAppModal(id);
+  else document.getElementById(id)?.classList.add('hidden');
+}
+function resetConflictFilters(){
+  ['conflictType','conflictCampus','conflictSubject','conflictGrade','conflictSearch'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  renderConflicts();
+}
+function handleAppAction(action, el, event) {
+  if (action === 'toggle-presence') togglePresencePopover(event);
+  else if (action === 'open-new-term') openNewTermModal();
+  else if (action === 'go-home') window.location.href = '/';
+  else if (action === 'load-data') loadData();
+  else if (action === 'export-excel') exportExcel(false);
+  else if (action === 'export-excel-changes') exportExcel(true);
+  else if (action === 'toggle-more-menu') toggleMoreMenu(event);
+  else if (action === 'set-term-default') { setCurrentTermDefault(); closeMoreMenu(); }
+  else if (action === 'open-edit-term') { openEditTermModal(); closeMoreMenu(); }
+  else if (action === 'archive-term') { archiveCurrentTerm(); closeMoreMenu(); }
+  else if (action === 'delete-term') { openDeleteTermModal(); closeMoreMenu(); }
+  else if (action === 'download-backup') { downloadJsonBackup(); closeMoreMenu(); }
+  else if (action === 'open-import') { showAppModal('importModal', '#importMode'); closeMoreMenu(); }
+  else if (action === 'show-system-status') { showSystemStatus(); closeMoreMenu(); }
+  else if (action === 'logout') logoutUser();
+  else if (action === 'advance-workflow') advanceWorkflow();
+  else if (action === 'set-workflow-status') setWorkflowStatusFromSelect();
+  else if (action === 'select-current-page') toggleSelectCurrentPage();
+  else if (action === 'clear-batch-selection') clearBatchSelection();
+  else if (action === 'apply-batch-update') applyBatchUpdate();
+  else if (action === 'open-new-course') openNewCourseModal({});
+  else if (action === 'cap-undo') capUndo();
+  else if (action === 'reset-conflict-filters') resetConflictFilters();
+  else if (action === 'render-changelog') renderChangelog();
+  else if (action === 'choose-import-file') document.getElementById('importFile')?.click();
+  else if (action === 'close-import') hideAppModal('importModal');
+  else if (action === 'do-import') doImport();
+  else if (action === 'close-new-course') closeNewCourseModal();
+  else if (action === 'submit-new-course') submitNewCourse();
+  else if (action === 'close-detail') closeDetailModal();
+  else if (action === 'cancel-reason') closeReasonModal(null);
+  else if (action === 'submit-reason') closeReasonModal('');
+  else if (action === 'cancel-confirm') closeConfirmModal(false);
+  else if (action === 'submit-confirm') closeConfirmModal(true);
+  else if (action === 'cancel-batch-review') closeBatchReviewModal(null);
+  else if (action === 'confirm-batch-review') closeBatchReviewModal(true);
+  else if (action === 'close-lifecycle-records') closeLifecycleRecordsModal();
+  else if (action === 'show-lifecycle-detail') showLifecycleDetail(el.dataset.id || '');
+  else if (action === 'close-cancel-course') closeCancelCourseModal();
+  else if (action === 'submit-cancel-course') submitCancelCourse();
+  else if (action === 'close-merge-course') closeMergeCourseModal();
+  else if (action === 'submit-merge-course') submitMergeCourse();
+  else if (action === 'close-new-term') hideAppModal('newTermModal');
+  else if (action === 'create-term') createTerm();
+  else if (action === 'close-edit-term') hideAppModal('editTermModal');
+  else if (action === 'save-term-info') saveTermInfo();
+  else if (action === 'close-delete-term') hideAppModal('deleteTermModal');
+  else if (action === 'confirm-delete-term') deleteCurrentTerm();
+}
+document.addEventListener('click', function(event) {
+  const lifecycleBtn = event.target.closest('[data-lifecycle-records]');
+  if (lifecycleBtn) {
+    event.stopPropagation();
+    showLifecycleRecords(lifecycleBtn.dataset.lifecycleRecords || '');
+    closeMoreMenu();
+    return;
+  }
+  const actionEl = event.target.closest('[data-app-action]');
+  if (actionEl) {
+    handleAppAction(actionEl.dataset.appAction || '', actionEl, event);
+    if (actionEl.dataset.appAction !== 'toggle-more-menu') closeMoreMenu();
+    return;
+  }
+  const zoomEl = event.target.closest('[data-zoom-capacity]');
+  if (zoomEl) {
+    zoomCapacity(Number(zoomEl.dataset.zoomCapacity || 0));
+    closeMoreMenu();
+    return;
+  }
+  const quickFilter = event.target.closest('[data-quick-filter]');
+  if (quickFilter) {
+    setScheduleQuickFilter(quickFilter.dataset.quickFilter || '');
+    closeMoreMenu();
+    return;
+  }
+  const backdrop = event.target.closest('[data-modal-backdrop]');
+  if (backdrop && event.target === backdrop) {
+    const id = backdrop.dataset.modalBackdrop;
+    closeAppModalById(id);
+    closeMoreMenu();
+    return;
+  }
+  closeMoreMenu();
+});
+document.addEventListener('change', function(event) {
+  const change = event.target.closest('[data-app-change]');
+  if (!change) return;
+  if (change.dataset.appChange === 'batch-field') renderBatchValueControl();
+  else if (change.dataset.appChange === 'batch-select-page') toggleSelectCurrentPage(change.checked);
+});
+document.addEventListener('keydown', function(event) {
+  handleAppModalKeydown(event);
+});
+</script>
+</body>
+</html>
