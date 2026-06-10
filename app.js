@@ -52,6 +52,7 @@ let pendingBatchReviewResolve = null;
 let pendingAppConfirmResolve = null;
 let currentActionReason = '';
 let modalFocusStack = [];
+let inlineSaveQueue = Promise.resolve();
 const APP_MODAL_IDS = [
   'importModal',
   'newCourseModal',
@@ -2248,6 +2249,13 @@ async function saveField(id, field, value) {
   } catch(e) { setSyncStatus(''); showToast('保存失败'); }
 }
 
+function queueSaveField(id, field, value) {
+  inlineSaveQueue = inlineSaveQueue
+    .catch(() => {})
+    .then(() => saveField(id, field, value));
+  return inlineSaveQueue;
+}
+
 async function deleteInsertedCourse(id) {
   if (!canEditNow()) {
     showToast('当前流程状态下不可删除');
@@ -2736,7 +2744,7 @@ document.getElementById('scheduleBody').addEventListener('blur', function(e) {
     let val = e.target.textContent.trim();
     if (val === '—') val = '';
     const course = findCourse(id);
-    if (course && val !== course.teacher) saveField(id, 'teacher', val);
+    if (course && val !== course.teacher) queueSaveField(id, 'teacher', val);
   }
 }, true);
 document.getElementById('scheduleBody').addEventListener('focusin', function(e) {
@@ -2801,17 +2809,17 @@ document.getElementById('scheduleBody').addEventListener('change', function(e) {
   if (e.target.dataset.field === 'slot') {
     const id = parseInt(e.target.dataset.id);
     markPresenceEditingElement(e.target);
-    saveField(id, 'slot', e.target.value);
+    queueSaveField(id, 'slot', e.target.value);
   }
   if (e.target.dataset.field === 'period') {
     const id = parseInt(e.target.dataset.id);
     markPresenceEditingElement(e.target);
-    saveField(id, 'period', e.target.value);
+    queueSaveField(id, 'period', e.target.value);
   }
   if (e.target.dataset.field === 'classType') {
     const id = parseInt(e.target.dataset.id);
     markPresenceEditingElement(e.target);
-    saveField(id, 'classType', e.target.value);
+    queueSaveField(id, 'classType', e.target.value);
   }
 });
 
