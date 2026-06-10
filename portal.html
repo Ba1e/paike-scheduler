@@ -178,6 +178,10 @@ button.dept-card { width: 100%; font: inherit; text-align: left; border-left: 0;
       <label>确认密码</label>
       <input id="resetPasswordConfirm" type="password" autocomplete="new-password" placeholder="再次输入新密码">
     </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569;margin-top:8px;">
+      <input id="resetPasswordReveal" type="checkbox" style="width:auto;">
+      显示本次输入的新密码
+    </label>
     <div class="actions">
       <button class="cancel" data-portal-action="close-password-modal">取消</button>
       <button class="ok" data-portal-action="submit-reset-password">确认重置</button>
@@ -603,11 +607,20 @@ async function deleteAdminUser(userId, email) {
 }
 
 let resetPasswordTarget = null;
+function updateResetPasswordReveal() {
+  const reveal = document.getElementById('resetPasswordReveal')?.checked;
+  ['resetPasswordInput', 'resetPasswordConfirm'].forEach(id => {
+    const input = document.getElementById(id);
+    if (input) input.type = reveal ? 'text' : 'password';
+  });
+}
 function openResetPasswordModal(userId, email) {
   resetPasswordTarget = {userId, email};
   document.getElementById('passwordModalUser').textContent = `账号：${email || userId}`;
   document.getElementById('resetPasswordInput').value = '';
   document.getElementById('resetPasswordConfirm').value = '';
+  document.getElementById('resetPasswordReveal').checked = false;
+  updateResetPasswordReveal();
   showPortalModal('passwordModal', '#resetPasswordInput');
 }
 function closePasswordModal() {
@@ -615,6 +628,8 @@ function closePasswordModal() {
   hidePortalModal('passwordModal');
   document.getElementById('resetPasswordInput').value = '';
   document.getElementById('resetPasswordConfirm').value = '';
+  document.getElementById('resetPasswordReveal').checked = false;
+  updateResetPasswordReveal();
 }
 async function submitResetPassword() {
   if (!resetPasswordTarget) return;
@@ -632,7 +647,11 @@ async function submitResetPassword() {
   const data = await res.json();
   if (!res.ok || data.error) { toast(data.error || '重置失败'); return; }
   closePasswordModal();
-  toast(`${email} 密码已重置`);
+  await confirmPortalAction({
+    title: '密码已重置',
+    message: `账号：${email || userId}\n本次新密码：${pwd}`,
+    confirmText: '知道了',
+  });
 }
 
 async function loadInvites() {
@@ -767,6 +786,10 @@ document.addEventListener('click', e => {
   else if (action === 'delete-invite') delInvite(code);
 });
 document.addEventListener('change', e => {
+  if (e.target.closest('#resetPasswordReveal')) {
+    updateResetPasswordReveal();
+    return;
+  }
   const select = e.target.closest('[data-admin-role-select="1"]');
   if (!select) return;
   updateAdminUserScopeFromEl(select);

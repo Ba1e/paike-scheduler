@@ -405,6 +405,14 @@ def verify_password(password, salt, expected_hash):
     _, h = hash_password(password, salt)
     return secrets.compare_digest(h, expected_hash)
 
+
+def set_user_password(user, password):
+    salt, ph = hash_password(password)
+    user['salt'] = salt
+    user['password_hash'] = ph
+    user.pop('password', None)
+    return user
+
 INVITE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
 def gen_invite_code(length=12):
     return ''.join(secrets.choice(INVITE_ALPHABET) for _ in range(length))
@@ -4052,14 +4060,15 @@ def auth_register():
             if not campus:
                 raise AuthUpdateError('店长身份请选择校区', 400)
 
-        salt, ph = hash_password(password)
+        auth_fields = {}
+        set_user_password(auth_fields, password)
         new_users = list(users)
         new_users.append({
             'id': secrets.token_hex(8),
             'email': email,
             'name': name,
-            'salt': salt,
-            'password_hash': ph,
+            'salt': auth_fields['salt'],
+            'password_hash': auth_fields['password_hash'],
             'dept_id': final_dept,
             'role': role,
             'campus': campus if role == 'store_manager' else None,
@@ -4450,25 +4459,23 @@ def admin_reset_password(user_id):
     new_password = (body.get('password') or '').strip()
     if len(new_password) < 6:
         return jsonify({'error': '密码至少6位'}), 400
-    salt, ph = hash_password(new_password)
 
     def updater(users):
         new_users = [dict(u) for u in users]
         target = next((u for u in new_users if u.get('id') == user_id), None)
         if not target:
             raise AuthUpdateError('用户不存在', 404)
-        target['salt'] = salt
-        target['password_hash'] = ph
-        target.pop('password', None)
+        set_user_password(target, new_password)
         target['updated_at'] = time.strftime('%Y-%m-%d %H:%M:%S')
         target['updated_by'] = request.user.get('email')
-        return new_users, {'ok': True}
+        return new_users, {'ok': True, 'user': public_user_info(target)}
 
     try:
-        update_users_atomic(updater)
+        result = update_users_atomic(updater)
     except AuthUpdateError as exc:
         return jsonify({'error': exc.message}), exc.status_code
-    return jsonify({'ok': True})
+    sqlite_store.delete_sessions_for_user(user_id)
+    return jsonify(result)
 
 
 @app.route('/api/admin/users/<user_id>', methods=['DELETE'])
