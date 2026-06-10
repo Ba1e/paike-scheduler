@@ -23,6 +23,13 @@ let capacityStatsCache = null;
 let capacityRenderSignature = '';
 let capacityHeadSignature = '';
 let heatmapRenderSignature = '';
+let derivedCourseSignature = '';
+let heatmapData = null;
+let heatmapVisibleLimit = 60;
+let heatmapFilterSignature = '';
+const HEATMAP_PAGE_SIZE = 60;
+const CAMPUS_COLORS = {};
+const COLOR_PALETTE = ['#1565c0','#c62828','#2e7d32','#e65100','#6a1b9a','#00838f','#4e342e','#283593','#558b2f','#ad1457','#f57f17'];
 let expandedSuggestionGroups = new Set();
 let conflictVisibleLimit = 20;
 let conflictFilterSignature = '';
@@ -304,7 +311,74 @@ function invalidateCapacityStatsCache() {
   capacityStatsCache = null;
   capacityRenderSignature = '';
   capacityHeadSignature = '';
+  heatmapData = null;
   heatmapRenderSignature = '';
+  heatmapFilterSignature = '';
+}
+
+function courseDerivedFields(c) {
+  return [
+    c?.id ?? '',
+    c?.teacher || '',
+    c?.slot || '',
+    c?.timeRange || '',
+    c?.room || '',
+    c?.period || '',
+    c?.classType || '',
+    c?.campus || '',
+    c?.season || '',
+    c?.day || '',
+    c?.subject || '',
+    getActualGrade(c) || '',
+    c?.name || '',
+    c?.code || '',
+    c?.currentCount ?? '',
+    courseLifecycleStatus(c),
+    c?.merged_into_id ?? '',
+    c?.merged_into_code || '',
+    c?.merged_count_added ?? '',
+    JSON.stringify(c?.merge_sources || []),
+  ];
+}
+
+function courseDerivedViewSignature() {
+  return JSON.stringify(courses.map(courseDerivedFields));
+}
+
+function markCourseDataChanged({force = false} = {}) {
+  const nextSignature = courseDerivedViewSignature();
+  if (force || nextSignature !== derivedCourseSignature) {
+    derivedCourseSignature = nextSignature;
+    invalidateConflictDataCache();
+    invalidateCapacityStatsCache();
+  }
+  refreshConflictCache();
+}
+
+function mergeLocalCourse(updated) {
+  if (!updated) return false;
+  const idx = findCourseIndex(updated.id);
+  if (idx < 0) return false;
+  const beforeSignature = JSON.stringify(courseDerivedFields(courses[idx]));
+  courses[idx] = {...courses[idx], ...updated};
+  const afterSignature = JSON.stringify(courseDerivedFields(courses[idx]));
+  return beforeSignature !== afterSignature;
+}
+
+function mergeLocalCourses(updatedCourses = []) {
+  let changed = false;
+  updatedCourses.filter(Boolean).forEach(updated => {
+    if (mergeLocalCourse(updated)) changed = true;
+  });
+  if (changed) markCourseDataChanged();
+  else refreshConflictCache();
+}
+
+function removeLocalCourse(id) {
+  const before = courses.length;
+  courses = courses.filter(c => String(c.id) !== String(id));
+  if (courses.length !== before) markCourseDataChanged();
+  else refreshConflictCache();
 }
 
 function normalizeDataVersion(version) {
@@ -686,16 +760,12 @@ async function applyBatchUpdate() {
     if (await handleVersionConflict(res, data)) return;
     if (!res.ok || data.error) throw new Error(data.error || 'batch failed');
     applyResponseVersion(res);
-    (data.courses || []).forEach(updated => {
-      const idx = findCourseIndex(updated.id);
-      if (idx >= 0) courses[idx] = {...courses[idx], ...updated};
-    });
+    mergeLocalCourses(data.courses || []);
     const failedIds = [
       ...(data.conflicts || []).map(x => String(x.id)),
       ...(data.errors || []).map(x => String(x.id)),
     ];
     selectedCourseIds = new Set(failedIds);
-    refreshConflictCache();
     setSyncStatus('saved');
     const successCount = data.courses?.length || 0;
     const issueCount = (data.conflicts?.length || 0) + (data.errors?.length || 0);
@@ -1383,7 +1453,7 @@ async function loadData(silent, options = {}) {
     allCampuses = [...new Set(activeCoursesForOptions.map(c=>c.campus).filter(Boolean))].sort();
     allSubjects = [...new Set(activeCoursesForOptions.filter(c=>c.subject).map(c=>c.subject))].sort();
     if (!loadedVersion && version) setLoadedVersion(version.version);
-    refreshConflictCache();
+    markCourseDataChanged();
     initFilters();
     const activeCourseList = courses.filter(isActiveCourse);
     document.getElementById('totalClasses').textContent = activeCourseList.length;
@@ -2171,8 +2241,7 @@ async function saveField(id, field, value) {
     if (await handleVersionConflict(res, updated)) return;
     if (!res.ok || updated.error) throw new Error(updated.error || 'save failed');
     applyResponseVersion(res);
-    const idx = findCourseIndex(updated.id ?? id);
-    if (idx >= 0) courses[idx] = {...courses[idx], ...updated};
+    mergeLocalCourses([updated]);
     setSyncStatus('saved');
     showToast('已保存');
     renderAll();
@@ -2202,7 +2271,7 @@ async function deleteInsertedCourse(id) {
     if (await handleVersionConflict(res, data)) return;
     if (!res.ok || data.error) throw new Error(data.error || 'delete failed');
     applyResponseVersion(res);
-    courses = courses.filter(c => String(c.id) !== String(id));
+    removeLocalCourse(id);
     setSyncStatus('saved');
     showToast('已删除新增课程');
     renderAll();
@@ -2275,9 +2344,7 @@ async function submitCancelCourseWithReason(id, reason) {
     if (await handleVersionConflict(res, data)) return;
     if (!res.ok || data.error) throw new Error(data.error || 'cancel failed');
     applyResponseVersion(res);
-    const idx = findCourseIndex(data.course?.id ?? id);
-    if (idx >= 0) courses[idx] = {...courses[idx], ...data.course};
-    refreshConflictCache();
+    mergeLocalCourses([data.course]);
     setSyncStatus('saved');
     showToast('已取消班级');
     closeCancelCourseModal();
@@ -2612,11 +2679,7 @@ async function submitMergeCourse() {
     if (await handleVersionConflict(res, data)) return;
     if (!res.ok || data.error) throw new Error(data.error || 'merge failed');
     applyResponseVersion(res);
-    [data.source, data.target].filter(Boolean).forEach(updated => {
-      const idx = findCourseIndex(updated.id);
-      if (idx >= 0) courses[idx] = {...courses[idx], ...updated};
-    });
-    refreshConflictCache();
+    mergeLocalCourses([data.source, data.target]);
     setSyncStatus('saved');
     showToast('已合并班级');
     closeMergeCourseModal();
@@ -2657,11 +2720,7 @@ async function restoreCourse(id) {
     if (await handleVersionConflict(res, data)) return;
     if (!res.ok || data.error) throw new Error(data.error || 'restore failed');
     applyResponseVersion(res);
-    [data.course, data.target].filter(Boolean).forEach(updated => {
-      const idx = findCourseIndex(updated.id);
-      if (idx >= 0) courses[idx] = {...courses[idx], ...updated};
-    });
-    refreshConflictCache();
+    mergeLocalCourses([data.course, data.target]);
     setSyncStatus('saved');
     showToast('已恢复班级');
     renderAll();
@@ -3117,14 +3176,15 @@ function buildCapacityStats() {
 }
 
 function getCapacityStats() {
+  const dataSignature = courseDerivedViewSignature();
   if (
     capacityStatsCache &&
     capacityStatsCache.version === (loadedVersion || '') &&
-    capacityStatsCache.courseCount === courses.length
+    capacityStatsCache.dataSignature === dataSignature
   ) {
     return capacityStatsCache;
   }
-  capacityStatsCache = buildCapacityStats();
+  capacityStatsCache = {...buildCapacityStats(), dataSignature};
   return capacityStatsCache;
 }
 
@@ -3132,9 +3192,10 @@ function renderCapacity() {
   const subjectFilter = document.getElementById('capSubject').value;
   const campusFilter = document.getElementById('capCampus').value;
   const teacherSearch = document.getElementById('capTeacherSearch').value.toLowerCase();
+  const dataSignature = courseDerivedViewSignature();
   const renderSignature = JSON.stringify({
     version: loadedVersion || '',
-    courseCount: courses.length,
+    dataSignature,
     subjectFilter,
     campusFilter,
     teacherSearch,
@@ -3435,11 +3496,8 @@ async function capDrop(e) {
         ]);
         return;
       }
-      applyResponseVersion(res);
-      (data.courses || []).forEach(updated => {
-        const idx = findCourseIndex(updated.id);
-        if (idx >= 0) courses[idx] = {...courses[idx], ...updated};
-      });
+    applyResponseVersion(res);
+    mergeLocalCourses(data.courses || []);
       setSyncStatus('saved');
       showToast('已交换');
       updateUndoBtn();
@@ -3479,8 +3537,7 @@ async function capDrop(e) {
       return;
     }
     applyResponseVersion(res);
-    const idx = findCourseIndex(updated.id ?? courseId);
-    if (idx >= 0) courses[idx] = {...courses[idx], ...updated};
+    mergeLocalCourses([updated]);
     setSyncStatus('saved');
     const desc = [];
     if (source.teacher !== target.teacher) desc.push(`教师: ${source.teacher} → ${target.teacher}`);
@@ -3525,11 +3582,8 @@ async function capUndo() {
     const data = await res.json();
     if (await handleVersionConflict(res, data)) { capUndoStack.push(entry); updateUndoBtn(); return; }
     if (!res.ok || data.error) throw new Error(data.error || 'undo failed');
-    applyResponseVersion(res);
-    (data.courses || []).forEach(updated => {
-      const idx = findCourseIndex(updated.id);
-      if (idx >= 0) courses[idx] = {...courses[idx], ...updated};
-    });
+      applyResponseVersion(res);
+      mergeLocalCourses(data.courses || []);
     setSyncStatus('saved');
     showToast('已撤销');
     updateUndoBtn();
@@ -4196,9 +4250,7 @@ async function patchSuggestedCourse(courseId, fields, actionName, confirmText) {
     if (await handleVersionConflict(res, data)) return;
     if (!res.ok || data.error) throw new Error(data.error || 'suggestion failed');
     applyResponseVersion(res);
-    const idx = findCourseIndex(data.id ?? courseId);
-    if (idx >= 0) courses[idx] = {...courses[idx], ...data};
-    refreshConflictCache();
+    mergeLocalCourses([data]);
     setSyncStatus('saved');
     showToast(`已${actionName}`);
     renderAll();
@@ -4262,11 +4314,7 @@ async function applyCoordinatedSwapSuggestion(courseId, swapWithId, targetSlot, 
     if (await handleVersionConflict(res, data)) return;
     if (!res.ok || data.error) throw new Error(data.error || 'swap failed');
     applyResponseVersion(res);
-    (data.courses || []).forEach(updated => {
-      const idx = findCourseIndex(updated.id);
-      if (idx >= 0) courses[idx] = {...courses[idx], ...updated};
-    });
-    refreshConflictCache();
+    mergeLocalCourses(data.courses || []);
     setSyncStatus('saved');
     showToast('已应用联动换课建议');
     renderAll();
@@ -6144,12 +6192,6 @@ async function renderChangelog() {
   }
 }
 
-let heatmapData = null;
-let heatmapVisibleLimit = 60;
-let heatmapFilterSignature = '';
-const HEATMAP_PAGE_SIZE = 60;
-const CAMPUS_COLORS = {};
-const COLOR_PALETTE = ['#1565c0','#c62828','#2e7d32','#e65100','#6a1b9a','#00838f','#4e342e','#283593','#558b2f','#ad1457','#f57f17'];
 function getHeatmapCampusColor(campus) {
   if (!CAMPUS_COLORS[campus]) {
     const idx = Object.keys(CAMPUS_COLORS).length % COLOR_PALETTE.length;
@@ -6175,10 +6217,16 @@ async function renderHeatmap() {
       heatmapData = await res.json();
       const cSel = document.getElementById('hmCampus');
       const sSel = document.getElementById('hmSubject');
-      (heatmapData.all_campuses || []).forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = shortCampusName(c); cSel.appendChild(o); });
+      const selectedCampus = cSel?.value || '';
+      const selectedSubject = sSel?.value || '';
+      if (cSel) cSel.innerHTML = '<option value="">全部</option>';
+      if (sSel) sSel.innerHTML = '<option value="">全部</option>';
+      (heatmapData.all_campuses || []).forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = shortCampusName(c); cSel?.appendChild(o); });
       const subjects = new Set();
       heatmapData.teachers.forEach(t => t.subjects.forEach(s => subjects.add(s)));
-      [...subjects].sort().forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; sSel.appendChild(o); });
+      [...subjects].sort().forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; sSel?.appendChild(o); });
+      if (selectedCampus && Array.from(cSel?.options || []).some(o => o.value === selectedCampus)) cSel.value = selectedCampus;
+      if (selectedSubject && Array.from(sSel?.options || []).some(o => o.value === selectedSubject)) sSel.value = selectedSubject;
     } catch(e) { container.innerHTML = '<p style="color:#c62828;">加载失败</p>'; return; }
   }
   const campusF = document.getElementById('hmCampus').value;
