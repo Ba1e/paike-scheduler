@@ -414,16 +414,24 @@ async function handleVersionConflict(res, data) {
     return true;
   }
   const code = data && data.code;
-  const isDataVersionConflict = ['version_conflict', 'missing_data_version'].includes(code)
+  const isDataVersionConflict = ['version_conflict', 'missing_data_version', 'field_conflict'].includes(code)
     || Boolean(data && data.current_version && [409, 428].includes(res.status));
   if (!isDataVersionConflict) return false;
   setSyncStatus('');
   const msg = data.error || '数据已被其他人修改，请刷新后再操作';
+  const fieldDetail = code === 'field_conflict'
+    ? [
+        data.course_label ? `课程：${data.course_label}` : '',
+        data.field_label ? `字段：${data.field_label}` : '',
+        data.current_value !== undefined ? `当前值：${data.current_value || '空'}` : '',
+        data.attempted_value !== undefined ? `你的修改：${data.attempted_value || '空'}` : '',
+      ].filter(Boolean).join('\n')
+    : '';
   showToast(msg);
   await loadData();
   await confirmAction({
-    title: '数据版本已更新',
-    message: msg + '\n\n页面已刷新到最新版本，请核对后重新提交刚才的修改。',
+    title: code === 'field_conflict' ? '字段已被他人修改' : '数据版本已更新',
+    message: msg + (fieldDetail ? `\n\n${fieldDetail}` : '') + '\n\n页面已刷新到最新版本，请核对后重新提交刚才的修改。',
     confirmText: '知道了',
   });
   return true;
@@ -433,6 +441,7 @@ const slotLabels = {A:'08:00-10:00',B:'10:20-12:20',C:'13:30-15:30',D:'15:50-17:
 const slotLabelsQingshao = {A:'08:30-10:30',B:'10:40-12:40',C:'14:00-16:00',D:'16:10-18:10',E:'18:30-20:30'};
 const currentSlotLabels = DEPT_ID === 'qingshao' ? slotLabelsQingshao : slotLabels;
 const FIELD_LABELS = {teacher:'授课教师', slot:'时段', timeRange:'上课时间', room:'教室', period:'期数', classType:'班型', campus:'校区', name:'班级名称', lifecycle_status:'班级状态', currentCount:'当前人数', merged_into_code:'合并至班级', room_occupancy_notice:'教室占用提醒', create:'新增', delete:'删除'};
+const COURSE_PATCH_FIELDS = ['teacher', 'slot', 'timeRange', 'room', 'period', 'classType'];
 const SUMMER_PERIODS = ['1期','2期','3期'];
 const AUTUMN_PERIODS = ['周五','周六','周日'];
 const SUITE_SUBJECTS = ['博文','双语','益智','科学','实践'];
@@ -457,6 +466,22 @@ function findCourseIndex(id) {
 function findCourse(id) {
   const idx = findCourseIndex(id);
   return idx >= 0 ? courses[idx] : null;
+}
+function buildBaseFields(course, fields = {}) {
+  const base = {};
+  COURSE_PATCH_FIELDS.forEach(field => {
+    if (Object.prototype.hasOwnProperty.call(fields, field)) {
+      base[field] = course ? (course[field] ?? '') : '';
+    }
+  });
+  return base;
+}
+function buildCourseUpdateItem(id, fields = {}, course = findCourse(id)) {
+  const cleanFields = {};
+  COURSE_PATCH_FIELDS.forEach(field => {
+    if (Object.prototype.hasOwnProperty.call(fields, field)) cleanFields[field] = fields[field];
+  });
+  return {id, fields: cleanFields, base_fields: buildBaseFields(course, cleanFields)};
 }
 function getOriginal(c) {
   if (!c || !isOriginalReady()) return null;
@@ -736,7 +761,7 @@ async function applyBatchUpdate() {
   const label = FIELD_LABELS[field] || field;
   const fields = {[field]: value};
   if (field === 'slot') fields.timeRange = currentSlotLabels[value] || '';
-  const updates = ids.map(id => ({id, fields}));
+  const updates = ids.map(id => buildCourseUpdateItem(id, fields));
   const review = await reviewBatchUpdate({
     ids,
     field,
@@ -2236,6 +2261,7 @@ async function saveField(id, field, value) {
       renderAll();
       return;
     }
+    body._base = buildBaseFields(course, body);
     body.reason = defaultActionReason('表格快速保存');
     const res = await apiFetch(`${API_BASE}/api/courses/${id}`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
     const updated = await res.json();
@@ -2246,7 +2272,7 @@ async function saveField(id, field, value) {
     setSyncStatus('saved');
     showToast('已保存');
     renderAll();
-  } catch(e) { setSyncStatus(''); showToast('保存失败'); }
+  } catch(e) { setSyncStatus(''); showToast(e.message || '保存失败'); }
 }
 
 function queueSaveField(id, field, value) {
@@ -3469,8 +3495,8 @@ async function capDrop(e) {
     if (source.slot !== target.slot) { updates1.slot = target.slot; updates2.slot = source.slot; }
     if (source.period !== target.period) { updates1.period = target.period; updates2.period = source.period; }
     const batchUpdates = [
-      {id: courseId, fields: updates1},
-      {id: targetCourse.id, fields: updates2}
+      buildCourseUpdateItem(courseId, updates1, sourceCourse),
+      buildCourseUpdateItem(targetCourse.id, updates2, targetCourse)
     ];
     if (!(await confirmSundayAfternoonBatch(batchUpdates))) return;
     const ok = await confirmAction({
@@ -3582,9 +3608,10 @@ async function capUndo() {
     const res = await apiFetch(`${API_BASE}/api/courses/batch`, {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({updates: entry.map(item => ({
-        id: item.courseId,
-        fields: {teacher: item.teacher, slot: item.slot, period: item.period}
+      body: JSON.stringify({updates: entry.map(item => buildCourseUpdateItem(item.courseId, {
+        teacher: item.teacher,
+        slot: item.slot,
+        period: item.period
       })), reason: defaultActionReason('撤销拖拽'), source: 'capacity_drag_undo'})
     });
     const data = await res.json();
@@ -4249,10 +4276,11 @@ async function patchSuggestedCourse(courseId, fields, actionName, confirmText) {
   if (!ok) return;
   setSyncStatus('saving');
   try {
+    const body = {...fields, _base: buildBaseFields(course, fields), reason: defaultActionReason(actionName)};
     const res = await apiFetch(`${API_BASE}/api/courses/${courseId}`, {
       method: 'PATCH',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({...fields, reason: defaultActionReason(actionName)}),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (await handleVersionConflict(res, data)) return;
@@ -4298,8 +4326,8 @@ async function applyCoordinatedSwapSuggestion(courseId, swapWithId, targetSlot, 
     return;
   }
   const updates = [
-    {id: courseId, fields: {slot: targetSlot, timeRange: currentSlotLabels[targetSlot] || ''}},
-    {id: swapWithId, fields: {slot: swapTargetSlot, timeRange: currentSlotLabels[swapTargetSlot] || ''}},
+    buildCourseUpdateItem(courseId, {slot: targetSlot, timeRange: currentSlotLabels[targetSlot] || ''}, source),
+    buildCourseUpdateItem(swapWithId, {slot: swapTargetSlot, timeRange: currentSlotLabels[swapTargetSlot] || ''}, target),
   ];
   if (!(await confirmSundayAfternoonBatch(updates))) return;
   const ok = await confirmAction({

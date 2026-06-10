@@ -152,6 +152,8 @@ FIELD_LABELS_PY = {
     'merged_into_code': '合并至班级',
     'room_occupancy_notice': '教室占用提醒',
 }
+COURSE_PATCH_FIELDS = {'teacher', 'slot', 'timeRange', 'room', 'period', 'classType'}
+COURSE_UPDATE_RETRY_LIMIT = 3
 GENERATE_MODES = {
     'spring_to_summer_autumn': {
         'remove_graduating': True,
@@ -3486,6 +3488,99 @@ def term_version_conflict_response(exc):
     return jsonify(term_version_conflict_payload(exc.current_version)), 409
 
 
+def current_term_version_number(dept_id, term_id):
+    return int(sqlite_store.get_term_version(dept_id, term_id).get('version') or 0)
+
+
+def term_version_header(version):
+    return f"sqlite:{int(version)}"
+
+
+def missing_data_version_problem(dept_id, term_id):
+    if request.headers.get('X-Data-Version'):
+        return None
+    return {
+        'error': '缺少数据版本，请刷新页面后再操作',
+        'code': 'missing_data_version',
+        'current_version': term_version_header(current_term_version_number(dept_id, term_id)),
+    }, 428
+
+
+def is_request_version_stale(current_version):
+    return request.headers.get('X-Data-Version') != term_version_header(current_version)
+
+
+def comparable_field_value(value):
+    return '' if value is None else str(value)
+
+
+def field_values_equal(left, right):
+    return comparable_field_value(left) == comparable_field_value(right)
+
+
+def course_patch_fields(payload):
+    if not isinstance(payload, dict):
+        return {}
+    return {k: v for k, v in payload.items() if k in COURSE_PATCH_FIELDS}
+
+
+def course_patch_base_fields(payload):
+    if not isinstance(payload, dict):
+        return {}
+    base = payload.get('_base')
+    if base is None:
+        base = payload.get('base_fields')
+    if base is None:
+        base = payload.get('base')
+    return base if isinstance(base, dict) else {}
+
+
+def course_label_for_message(course, fallback=''):
+    return ' '.join(
+        str(part)
+        for part in [course.get('code'), course.get('name')]
+        if part
+    ) or str(fallback or course.get('id') or '')
+
+
+def field_level_conflict_problem(dept_id, term_id, course, fields, base_fields, current_version):
+    missing = missing_data_version_problem(dept_id, term_id)
+    if missing:
+        return missing
+    if not is_request_version_stale(current_version):
+        return None
+    for field, desired_value in fields.items():
+        actual_value = course.get(field, '')
+        if field_values_equal(actual_value, desired_value):
+            continue
+        if field not in base_fields:
+            return {
+                'error': '数据已更新，缺少字段基线，无法安全合并，请刷新后重试',
+                'code': 'version_conflict',
+                'current_version': term_version_header(current_version),
+                'course_id': course.get('id'),
+                'course_label': course_label_for_message(course),
+                'field': field,
+                'field_label': FIELD_LABELS_PY.get(field, field),
+            }, 409
+        base_value = base_fields.get(field, '')
+        if not field_values_equal(actual_value, base_value):
+            label = FIELD_LABELS_PY.get(field, field)
+            return {
+                'error': f'{label}已被其他人修改，请刷新后核对',
+                'code': 'field_conflict',
+                'current_version': term_version_header(current_version),
+                'course_id': course.get('id'),
+                'course_label': course_label_for_message(course),
+                'field': field,
+                'field_label': label,
+                'base_value': comparable_field_value(base_value),
+                'current_value': comparable_field_value(actual_value),
+                'attempted_value': comparable_field_value(desired_value),
+            }, 409
+    return None
+
+
 def jsonify_with_term_version(payload, dept_id, term_id, status=200):
     resp = make_response(jsonify(payload), status)
     resp.headers['X-Data-Version'] = f"sqlite:{sqlite_store.get_term_version(dept_id, term_id)['version']}"
@@ -3556,7 +3651,7 @@ def prune_history(hist_dir, keep=HISTORY_KEEP_FILES):
         except OSError:
             pass
 
-def save_term_data(dept_id, term_id, courses, user=None, old_courses=None, action='保存排课', reason=''):
+def save_term_data(dept_id, term_id, courses, user=None, old_courses=None, action='保存排课', reason='', expected_version=None):
     meta = None
     backup_name = None
     before_version = sqlite_store.get_term_version(dept_id, term_id).get('version')
@@ -3571,7 +3666,7 @@ def save_term_data(dept_id, term_id, courses, user=None, old_courses=None, actio
         previous_courses = old_courses if old_courses is not None else load_term_data(dept_id, term_id)
         diffs = compute_diffs(previous_courses, courses)
         data_namespace = document_namespace_for_path(data_file)
-        expected_version = current_request_term_version()
+        expected_version = current_request_term_version() if expected_version is None else expected_version
         if data_namespace:
             result = sqlite_store.set_term_document_and_touch_version(
                 data_namespace,
@@ -5183,47 +5278,79 @@ def t_update_course(dept_id, term_id, course_id):
     if err: return err
     wf_err = check_workflow_permission(dept_id, term_id, user)
     if wf_err: return wf_err
-    conflict = term_version_conflict(dept_id, term_id)
-    if conflict: return conflict
-    courses = load_term_data(dept_id, term_id)
-    idx = find_course_index(courses, course_id)
-    if idx is None:
-        return jsonify({'error': 'not found'}), 404
-    if not can_edit_course(user, courses[idx], dept_id):
-        return jsonify({'error': '无权编辑该课程'}), 403
-    if not is_active_course(courses[idx]):
-        return jsonify({'error': '已取消或已合并的班级需先恢复后再编辑'}), 400
-    old_courses = [dict(c) for c in courses]
     updates = request.json or {}
     reason = str(updates.get('reason') or '').strip()
+    fields = course_patch_fields(updates)
+    base_fields = course_patch_base_fields(updates)
     soft_allow_room_conflict = should_soft_allow_room_conflict(updates)
-    room_occupancy_notices = []
-    allowed = {'teacher', 'slot', 'timeRange', 'room', 'period', 'classType'}
-    changed = False
-    for k, v in updates.items():
-        if k in allowed and courses[idx].get(k) != v:
-            courses[idx][k] = v
-            changed = True
-    if changed:
-        c = courses[idx]
-        result = check_course_conflict(
-            dept_id, term_id, courses, c.get('teacher'), c.get('room'), c.get('campus'),
-            c.get('season'), c.get('period'), c.get('slot'), c.get('day', ''), exclude_id=c.get('id')
+    version_problem = missing_data_version_problem(dept_id, term_id)
+    if version_problem:
+        payload, status = version_problem
+        return jsonify(payload), status
+
+    last_conflict = None
+    for attempt in range(COURSE_UPDATE_RETRY_LIMIT):
+        current_version = current_term_version_number(dept_id, term_id)
+        courses = load_term_data(dept_id, term_id)
+        idx = find_course_index(courses, course_id)
+        if idx is None:
+            return jsonify({'error': 'not found'}), 404
+        if not can_edit_course(user, courses[idx], dept_id):
+            return jsonify({'error': '无权编辑该课程'}), 403
+        if not is_active_course(courses[idx]):
+            return jsonify({'error': '已取消或已合并的班级需先恢复后再编辑'}), 400
+
+        field_problem = field_level_conflict_problem(
+            dept_id, term_id, courses[idx], fields, base_fields, current_version
         )
-        hard_room_conflict = has_room_occupancy_notice(result) and not soft_allow_room_conflict
-        if result['teacher_conflict'] or hard_room_conflict:
-            return jsonify({'error': '修改后存在冲突', 'conflict_type': 'mixed', **result}), 409
-        if soft_allow_room_conflict and has_room_occupancy_notice(result):
-            room_occupancy_notices.append({
-                'course': dict(c),
-                'notice': room_occupancy_notice_text(result),
-            })
-    if changed:
-        action = '产能表拖拽调整' if soft_allow_room_conflict else '表格编辑'
-        save_err = save_term_data_or_conflict(dept_id, term_id, courses, user=current_user(), old_courses=old_courses, action=action, reason=reason)
-        if save_err: return save_err
-        append_room_occupancy_notices(dept_id, term_id, user, action, reason, room_occupancy_notices)
-    return jsonify_with_term_version(courses[idx], dept_id, term_id)
+        if field_problem:
+            payload, status = field_problem
+            return jsonify(payload), status
+
+        old_courses = [dict(c) for c in courses]
+        room_occupancy_notices = []
+        changed = False
+        for k, v in fields.items():
+            if courses[idx].get(k) != v:
+                courses[idx][k] = v
+                changed = True
+        if changed:
+            c = courses[idx]
+            result = check_course_conflict(
+                dept_id, term_id, courses, c.get('teacher'), c.get('room'), c.get('campus'),
+                c.get('season'), c.get('period'), c.get('slot'), c.get('day', ''), exclude_id=c.get('id')
+            )
+            hard_room_conflict = has_room_occupancy_notice(result) and not soft_allow_room_conflict
+            if result['teacher_conflict'] or hard_room_conflict:
+                return jsonify({'error': '修改后存在冲突', 'conflict_type': 'mixed', **result}), 409
+            if soft_allow_room_conflict and has_room_occupancy_notice(result):
+                room_occupancy_notices.append({
+                    'course': dict(c),
+                    'notice': room_occupancy_notice_text(result),
+                })
+            action = '产能表拖拽调整' if soft_allow_room_conflict else '表格编辑'
+            try:
+                save_term_data(
+                    dept_id,
+                    term_id,
+                    courses,
+                    user=user,
+                    old_courses=old_courses,
+                    action=action,
+                    reason=reason,
+                    expected_version=current_version,
+                )
+            except TermVersionConflict as exc:
+                last_conflict = exc
+                if attempt + 1 < COURSE_UPDATE_RETRY_LIMIT:
+                    continue
+                return term_version_conflict_response(exc)
+            append_room_occupancy_notices(dept_id, term_id, user, action, reason, room_occupancy_notices)
+        return jsonify_with_term_version(courses[idx], dept_id, term_id)
+
+    if last_conflict:
+        return term_version_conflict_response(last_conflict)
+    return jsonify({'error': '保存失败，请刷新后重试'}), 409
 
 @app.route('/dept/<dept_id>/<term_id>/api/courses/batch', methods=['PATCH'])
 def t_update_courses_batch(dept_id, term_id):
@@ -5231,8 +5358,6 @@ def t_update_courses_batch(dept_id, term_id):
     if err: return err
     wf_err = check_workflow_permission(dept_id, term_id, user)
     if wf_err: return wf_err
-    conflict = term_version_conflict(dept_id, term_id)
-    if conflict: return conflict
     body = request.json or {}
     reason = str(body.get('reason') or '').strip()
     items = body.get('updates') or []
@@ -5242,113 +5367,146 @@ def t_update_courses_batch(dept_id, term_id):
         return jsonify({'error': '缺少更新内容'}), 400
     if len(items) > 20:
         return jsonify({'error': '单次最多更新 20 个课程'}), 400
-    courses = load_term_data(dept_id, term_id)
-    old_courses = [dict(c) for c in courses]
-    allowed = {'teacher', 'slot', 'timeRange', 'room', 'period', 'classType'}
-    changed = False
-    updated_courses = []
-    conflicts = []
-    errors = []
-    room_occupancy_notices = []
+    version_problem = missing_data_version_problem(dept_id, term_id)
+    if version_problem:
+        payload, status = version_problem
+        return jsonify(payload), status
 
-    if not allow_partial:
-        touched_indexes = []
-        touched_index_set = set()
+    last_conflict = None
+    for attempt in range(COURSE_UPDATE_RETRY_LIMIT):
+        current_version = current_term_version_number(dept_id, term_id)
+        courses = load_term_data(dept_id, term_id)
+        old_courses = [dict(c) for c in courses]
+        changed = False
+        updated_courses = []
+        conflicts = []
+        errors = []
+        room_occupancy_notices = []
+
+        if not allow_partial:
+            touched_indexes = []
+            touched_index_set = set()
+            for item in items:
+                course_id = item.get('id')
+                fields = course_patch_fields(item.get('fields') or {})
+                base_fields = course_patch_base_fields(item)
+                try:
+                    course_id_int = int(course_id) if course_id is not None else None
+                except (TypeError, ValueError):
+                    course_id_int = None
+                idx = find_course_index(courses, course_id_int) if course_id_int is not None else None
+                if idx is None:
+                    return jsonify({'error': f'课程不存在：{course_id}'}), 404
+                if not can_edit_course(user, courses[idx], dept_id):
+                    return jsonify({'error': f'无权编辑课程：{course_id}'}), 403
+                if not is_active_course(courses[idx]):
+                    return jsonify({'error': f'已取消或已合并的班级需先恢复后再编辑：{course_id}'}), 400
+                field_problem = field_level_conflict_problem(
+                    dept_id, term_id, courses[idx], fields, base_fields, current_version
+                )
+                if field_problem:
+                    payload, status = field_problem
+                    return jsonify(payload), status
+                item_changed = False
+                for k, v in fields.items():
+                    if courses[idx].get(k) != v:
+                        courses[idx][k] = v
+                        item_changed = True
+                if idx not in touched_index_set:
+                    touched_indexes.append(idx)
+                    touched_index_set.add(idx)
+                if item_changed:
+                    changed = True
+                updated_courses.append(courses[idx])
+            if changed:
+                for idx in touched_indexes:
+                    c = courses[idx]
+                    result = check_course_conflict(
+                        dept_id, term_id, courses, c.get('teacher'), c.get('room'), c.get('campus'),
+                        c.get('season'), c.get('period'), c.get('slot'), c.get('day', ''), exclude_id=c.get('id')
+                    )
+                    hard_room_conflict = has_room_occupancy_notice(result) and not soft_allow_room_conflict
+                    if result['teacher_conflict'] or hard_room_conflict:
+                        label = c.get('code') or c.get('name') or c.get('id')
+                        return jsonify({'error': f'修改后存在冲突：{label}', 'conflict_type': 'mixed', **result}), 409
+                    if soft_allow_room_conflict and has_room_occupancy_notice(result):
+                        room_occupancy_notices.append({
+                            'course': dict(c),
+                            'notice': room_occupancy_notice_text(result),
+                        })
+                action = '产能表拖拽调整'
+                try:
+                    save_term_data(
+                        dept_id,
+                        term_id,
+                        courses,
+                        user=user,
+                        old_courses=old_courses,
+                        action=action,
+                        reason=reason,
+                        expected_version=current_version,
+                    )
+                except TermVersionConflict as exc:
+                    last_conflict = exc
+                    if attempt + 1 < COURSE_UPDATE_RETRY_LIMIT:
+                        continue
+                    return term_version_conflict_response(exc)
+                append_room_occupancy_notices(dept_id, term_id, user, action, reason, room_occupancy_notices)
+            return jsonify_with_term_version({
+                'ok': True,
+                'partial': False,
+                'courses': updated_courses,
+                'success': [c.get('id') for c in updated_courses],
+                'conflicts': conflicts,
+                'errors': errors,
+            }, dept_id, term_id)
+
         for item in items:
             course_id = item.get('id')
-            fields = item.get('fields') or {}
+            fields = course_patch_fields(item.get('fields') or {})
+            base_fields = course_patch_base_fields(item)
             try:
                 course_id_int = int(course_id) if course_id is not None else None
             except (TypeError, ValueError):
                 course_id_int = None
             idx = find_course_index(courses, course_id_int) if course_id_int is not None else None
             if idx is None:
-                return jsonify({'error': f'课程不存在：{course_id}'}), 404
-            if not can_edit_course(user, courses[idx], dept_id):
-                return jsonify({'error': f'无权编辑课程：{course_id}'}), 403
-            if not is_active_course(courses[idx]):
-                return jsonify({'error': f'已取消或已合并的班级需先恢复后再编辑：{course_id}'}), 400
-            item_changed = False
-            for k, v in fields.items():
-                if k in allowed and courses[idx].get(k) != v:
-                    courses[idx][k] = v
-                    item_changed = True
-            if idx not in touched_index_set:
-                touched_indexes.append(idx)
-                touched_index_set.add(idx)
-            if item_changed:
-                changed = True
-            updated_courses.append(courses[idx])
-        if changed:
-            for idx in touched_indexes:
-                c = courses[idx]
-                result = check_course_conflict(
-                    dept_id, term_id, courses, c.get('teacher'), c.get('room'), c.get('campus'),
-                    c.get('season'), c.get('period'), c.get('slot'), c.get('day', ''), exclude_id=c.get('id')
-                )
-                hard_room_conflict = has_room_occupancy_notice(result) and not soft_allow_room_conflict
-                if result['teacher_conflict'] or hard_room_conflict:
-                    label = c.get('code') or c.get('name') or c.get('id')
-                    return jsonify({'error': f'修改后存在冲突：{label}', 'conflict_type': 'mixed', **result}), 409
-                if soft_allow_room_conflict and has_room_occupancy_notice(result):
-                    room_occupancy_notices.append({
-                        'course': dict(c),
-                        'notice': room_occupancy_notice_text(result),
-                    })
-            action = '产能表拖拽调整'
-            save_err = save_term_data_or_conflict(dept_id, term_id, courses, user=current_user(), old_courses=old_courses, action=action, reason=reason)
-            if save_err: return save_err
-            append_room_occupancy_notices(dept_id, term_id, user, action, reason, room_occupancy_notices)
-        return jsonify_with_term_version({
-            'ok': True,
-            'partial': False,
-            'courses': updated_courses,
-            'success': [c.get('id') for c in updated_courses],
-            'conflicts': conflicts,
-            'errors': errors,
-        }, dept_id, term_id)
-
-    for item in items:
-        course_id = item.get('id')
-        fields = item.get('fields') or {}
-        try:
-            course_id_int = int(course_id) if course_id is not None else None
-        except (TypeError, ValueError):
-            course_id_int = None
-        idx = find_course_index(courses, course_id_int) if course_id_int is not None else None
-        if idx is None:
-            if allow_partial:
                 errors.append({'id': course_id, 'error': f'课程不存在：{course_id}'})
                 continue
-            return jsonify({'error': f'课程不存在：{course_id}'}), 404
-        if not can_edit_course(user, courses[idx], dept_id):
-            if allow_partial:
+            if not can_edit_course(user, courses[idx], dept_id):
                 errors.append({'id': course_id, 'error': f'无权编辑课程：{course_id}'})
                 continue
-            return jsonify({'error': f'无权编辑课程：{course_id}'}), 403
-        if not is_active_course(courses[idx]):
-            if allow_partial:
+            if not is_active_course(courses[idx]):
                 errors.append({'id': course_id, 'error': f'已取消或已合并的班级需先恢复后再编辑：{course_id}'})
                 continue
-            return jsonify({'error': f'已取消或已合并的班级需先恢复后再编辑：{course_id}'}), 400
-        before = dict(courses[idx])
-        item_changed = False
-        for k, v in fields.items():
-            if k in allowed and courses[idx].get(k) != v:
-                courses[idx][k] = v
-                item_changed = True
-        if not item_changed:
-            updated_courses.append(courses[idx])
-            continue
-        c = courses[idx]
-        result = check_course_conflict(
-            dept_id, term_id, courses, c.get('teacher'), c.get('room'), c.get('campus'),
-            c.get('season'), c.get('period'), c.get('slot'), c.get('day', ''), exclude_id=c.get('id')
-        )
-        hard_room_conflict = has_room_occupancy_notice(result) and not soft_allow_room_conflict
-        if result['teacher_conflict'] or hard_room_conflict:
-            label = c.get('code') or c.get('name') or c.get('id')
-            if allow_partial:
+            field_problem = field_level_conflict_problem(
+                dept_id, term_id, courses[idx], fields, base_fields, current_version
+            )
+            if field_problem:
+                payload, _status = field_problem
+                conflicts.append({
+                    'id': course_id,
+                    'label': payload.get('course_label') or course_label_for_message(courses[idx], course_id),
+                    **payload,
+                })
+                continue
+            before = dict(courses[idx])
+            item_changed = False
+            for k, v in fields.items():
+                if courses[idx].get(k) != v:
+                    courses[idx][k] = v
+                    item_changed = True
+            if not item_changed:
+                updated_courses.append(courses[idx])
+                continue
+            c = courses[idx]
+            result = check_course_conflict(
+                dept_id, term_id, courses, c.get('teacher'), c.get('room'), c.get('campus'),
+                c.get('season'), c.get('period'), c.get('slot'), c.get('day', ''), exclude_id=c.get('id')
+            )
+            hard_room_conflict = has_room_occupancy_notice(result) and not soft_allow_room_conflict
+            if result['teacher_conflict'] or hard_room_conflict:
+                label = c.get('code') or c.get('name') or c.get('id')
                 courses[idx] = before
                 conflicts.append({
                     'id': course_id,
@@ -5358,27 +5516,44 @@ def t_update_courses_batch(dept_id, term_id):
                     **result,
                 })
                 continue
-            return jsonify({'error': f'修改后存在冲突：{label}', 'conflict_type': 'mixed', **result}), 409
-        if soft_allow_room_conflict and has_room_occupancy_notice(result):
-            room_occupancy_notices.append({
-                'course': dict(c),
-                'notice': room_occupancy_notice_text(result),
-            })
-        changed = True
-        updated_courses.append(courses[idx])
-    if changed:
-        action = '批量修改课程' if allow_partial else '产能表拖拽调整'
-        save_err = save_term_data_or_conflict(dept_id, term_id, courses, user=current_user(), old_courses=old_courses, action=action, reason=reason)
-        if save_err: return save_err
-        append_room_occupancy_notices(dept_id, term_id, user, action, reason, room_occupancy_notices)
-    return jsonify_with_term_version({
-        'ok': True,
-        'partial': allow_partial,
-        'courses': updated_courses,
-        'success': [c.get('id') for c in updated_courses],
-        'conflicts': conflicts,
-        'errors': errors,
-    }, dept_id, term_id)
+            if soft_allow_room_conflict and has_room_occupancy_notice(result):
+                room_occupancy_notices.append({
+                    'course': dict(c),
+                    'notice': room_occupancy_notice_text(result),
+                })
+            changed = True
+            updated_courses.append(courses[idx])
+        if changed:
+            action = '批量修改课程'
+            try:
+                save_term_data(
+                    dept_id,
+                    term_id,
+                    courses,
+                    user=user,
+                    old_courses=old_courses,
+                    action=action,
+                    reason=reason,
+                    expected_version=current_version,
+                )
+            except TermVersionConflict as exc:
+                last_conflict = exc
+                if attempt + 1 < COURSE_UPDATE_RETRY_LIMIT:
+                    continue
+                return term_version_conflict_response(exc)
+            append_room_occupancy_notices(dept_id, term_id, user, action, reason, room_occupancy_notices)
+        return jsonify_with_term_version({
+            'ok': True,
+            'partial': allow_partial,
+            'courses': updated_courses,
+            'success': [c.get('id') for c in updated_courses],
+            'conflicts': conflicts,
+            'errors': errors,
+        }, dept_id, term_id)
+
+    if last_conflict:
+        return term_version_conflict_response(last_conflict)
+    return jsonify({'error': '保存失败，请刷新后重试'}), 409
 
 @app.route('/dept/<dept_id>/<term_id>/api/courses/<int:course_id>/cancel', methods=['POST'])
 def t_cancel_course(dept_id, term_id, course_id):
