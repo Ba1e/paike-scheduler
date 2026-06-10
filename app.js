@@ -779,6 +779,7 @@ async function applyBatchUpdate() {
       body: JSON.stringify({
         updates,
         reason,
+        source: 'batch_edit',
         partial_success: true,
       }),
     });
@@ -2262,6 +2263,7 @@ async function saveField(id, field, value) {
       return;
     }
     body._base = buildBaseFields(course, body);
+    body.source = 'inline_edit';
     body.reason = defaultActionReason('表格快速保存');
     const res = await apiFetch(`${API_BASE}/api/courses/${id}`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
     const updated = await res.json();

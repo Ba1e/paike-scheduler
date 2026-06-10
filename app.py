@@ -1235,7 +1235,7 @@ def check_course_conflict(dept_id, term_id, courses, teacher, room, campus, seas
 
 def should_soft_allow_room_conflict(payload):
     source = str((payload or {}).get('source') or '').strip()
-    return source in {'capacity_drag', 'capacity_drag_undo'}
+    return source in {'capacity_drag', 'capacity_drag_undo', 'inline_edit', 'batch_edit'}
 
 
 def has_room_occupancy_notice(conflict_result):
